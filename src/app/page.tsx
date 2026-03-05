@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { StandingEntry, Fixture, FixtureEvent } from "@/lib/types";
+import type {
+  StandingEntry,
+  StandingsResponse,
+  Fixture,
+  FixtureEvent,
+} from "@/lib/domain-types";
 
 // ─── Helpers ───────────────────────────────────────────────
 
@@ -29,11 +34,14 @@ function daysUntil(dateStr: string) {
   return `In ${days} days`;
 }
 
-function resultFor(fixture: Fixture, teamId: number): "W" | "D" | "L" | null {
-  if (fixture.fixture.status.short !== "FT") return null;
-  const isHome = fixture.teams.home.id === teamId;
-  const teamGoals = isHome ? fixture.goals.home : fixture.goals.away;
-  const oppGoals = isHome ? fixture.goals.away : fixture.goals.home;
+function resultFor(
+  fixture: Fixture,
+  teamId: number
+): "W" | "D" | "L" | null {
+  if (fixture.status !== "FT") return null;
+  const isHome = fixture.homeTeam.id === teamId;
+  const teamGoals = isHome ? fixture.homeGoals : fixture.awayGoals;
+  const oppGoals = isHome ? fixture.awayGoals : fixture.homeGoals;
   if (teamGoals === null || oppGoals === null) return null;
   if (teamGoals > oppGoals) return "W";
   if (teamGoals < oppGoals) return "L";
@@ -90,7 +98,9 @@ function PositionBadge({ rank }: { rank: number }) {
     <div
       className={`stat-animate inline-flex items-center justify-center w-20 h-20 rounded-2xl ${bg}`}
     >
-      <span className={`text-3xl font-extrabold ${color}`}>{ordinal(rank)}</span>
+      <span className={`text-3xl font-extrabold ${color}`}>
+        {ordinal(rank)}
+      </span>
     </div>
   );
 }
@@ -146,7 +156,9 @@ function StatBox({
 }) {
   return (
     <div className="text-center">
-      <p className={`stat-animate text-3xl font-extrabold ${color}`}>{value}</p>
+      <p className={`stat-animate text-3xl font-extrabold ${color}`}>
+        {value}
+      </p>
       <p className="text-xs text-muted mt-1 font-medium">{label}</p>
     </div>
   );
@@ -155,10 +167,7 @@ function StatBox({
 // ─── Dashboard ─────────────────────────────────────────────
 
 export default function Dashboard() {
-  const [standings, setStandings] = useState<{
-    team: StandingEntry;
-    leagueName: string;
-  } | null>(null);
+  const [standings, setStandings] = useState<StandingsResponse | null>(null);
   const [lastFixtures, setLastFixtures] = useState<Fixture[]>([]);
   const [nextFixtures, setNextFixtures] = useState<Fixture[]>([]);
   const [lastMatchEvents, setLastMatchEvents] = useState<FixtureEvent[]>([]);
@@ -176,9 +185,9 @@ export default function Dashboard() {
           fetch("/api/fixtures?type=next&count=3"),
         ]);
 
-        const standingsData = await standingsRes.json();
-        const lastData = await lastRes.json();
-        const nextData = await nextRes.json();
+        const standingsData: StandingsResponse = await standingsRes.json();
+        const lastData: Fixture[] = await lastRes.json();
+        const nextData: Fixture[] = await nextRes.json();
 
         setStandings(standingsData);
         setLastFixtures(lastData);
@@ -189,7 +198,7 @@ export default function Dashboard() {
         if (lastData.length > 0) {
           const lastMatch = lastData[lastData.length - 1];
           const eventsRes = await fetch(
-            `/api/fixture-stats?id=${lastMatch.fixture.id}`
+            `/api/fixture-stats?id=${lastMatch.id}`
           );
           const eventsData = await eventsRes.json();
           setLastMatchEvents(eventsData.events || []);
@@ -226,7 +235,7 @@ export default function Dashboard() {
     );
   }
 
-  const team = standings?.team;
+  const team: StandingEntry | null = standings?.team ?? null;
   const lastMatch =
     lastFixtures.length > 0 ? lastFixtures[lastFixtures.length - 1] : null;
   const nextMatch = nextFixtures.length > 0 ? nextFixtures[0] : null;
@@ -238,7 +247,7 @@ export default function Dashboard() {
   }));
 
   // Points per game
-  const ppg = team ? (team.points / team.all.played).toFixed(2) : "-";
+  const ppg = team ? (team.points / team.played).toFixed(2) : "-";
 
   return (
     <div className="min-h-screen bg-background">
@@ -291,8 +300,8 @@ export default function Dashboard() {
                     <span className="text-muted">pts</span>
                   </p>
                   <p className="text-xs text-muted">
-                    P{team.all.played} &nbsp;W{team.all.win} &nbsp;D
-                    {team.all.draw} &nbsp;L{team.all.lose}
+                    P{team.played} &nbsp;W{team.wins} &nbsp;D
+                    {team.draws} &nbsp;L{team.losses}
                   </p>
                   <p className="text-xs">
                     GD{" "}
@@ -328,14 +337,14 @@ export default function Dashboard() {
               </div>
               <div className="space-y-1.5">
                 {recentForm.map((f, i) => {
-                  const isHome = f.fixture.teams.home.id === TEAM_ID;
+                  const isHome = f.fixture.homeTeam.id === TEAM_ID;
                   const opponent = isHome
-                    ? f.fixture.teams.away.name
-                    : f.fixture.teams.home.name;
+                    ? f.fixture.awayTeam.name
+                    : f.fixture.homeTeam.name;
                   return (
                     <p key={i} className="text-xs text-muted">
                       <span className="font-semibold text-slate-700">
-                        {f.fixture.goals.home}–{f.fixture.goals.away}
+                        {f.fixture.homeGoals}–{f.fixture.awayGoals}
                       </span>{" "}
                       {isHome ? "vs" : "@"} {opponent}
                     </p>
@@ -365,7 +374,8 @@ export default function Dashboard() {
                       Home
                     </span>
                     <span className="font-bold text-sm text-slate-800">
-                      {team.home.win}W {team.home.draw}D {team.home.lose}L
+                      {team.homeRecord.w}W {team.homeRecord.d}D{" "}
+                      {team.homeRecord.l}L
                     </span>
                   </div>
                   <div className="bg-slate-50 rounded-xl px-3 py-2.5">
@@ -373,7 +383,8 @@ export default function Dashboard() {
                       Away
                     </span>
                     <span className="font-bold text-sm text-slate-800">
-                      {team.away.win}W {team.away.draw}D {team.away.lose}L
+                      {team.awayRecord.w}W {team.awayRecord.d}D{" "}
+                      {team.awayRecord.l}L
                     </span>
                   </div>
                 </div>
@@ -390,53 +401,52 @@ export default function Dashboard() {
           ) : lastMatch ? (
             <Card title="Last Match" accent>
               <div className="text-xs text-muted mb-3 font-medium">
-                {formatDate(lastMatch.fixture.date)} &middot;{" "}
-                {lastMatch.league.round}
+                {formatDate(lastMatch.date)} &middot;{" "}
+                {lastMatch.leagueRound}
               </div>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3 flex-1">
                   <div className="w-10 h-10 bg-slate-50 rounded-xl p-1.5 flex-shrink-0">
                     <img
-                      src={lastMatch.teams.home.logo}
-                      alt={lastMatch.teams.home.name}
+                      src={lastMatch.homeTeam.logo}
+                      alt={lastMatch.homeTeam.name}
                       className="w-full h-full object-contain"
                     />
                   </div>
                   <span
                     className={`text-sm font-medium leading-tight ${
-                      lastMatch.teams.home.id === TEAM_ID
+                      lastMatch.homeTeam.id === TEAM_ID
                         ? "text-brfc-blue font-bold"
                         : "text-slate-700"
                     }`}
                   >
-                    {lastMatch.teams.home.name}
+                    {lastMatch.homeTeam.name}
                   </span>
                 </div>
                 <div className="text-center px-4">
                   <span className="text-3xl font-extrabold tracking-tight">
-                    {lastMatch.goals.home} – {lastMatch.goals.away}
+                    {lastMatch.homeGoals} – {lastMatch.awayGoals}
                   </span>
-                  {lastMatch.score.halftime.home !== null && (
+                  {lastMatch.halftimeHome !== null && (
                     <p className="text-[10px] text-muted mt-0.5 font-medium">
-                      HT {lastMatch.score.halftime.home}–
-                      {lastMatch.score.halftime.away}
+                      HT {lastMatch.halftimeHome}–{lastMatch.halftimeAway}
                     </p>
                   )}
                 </div>
                 <div className="flex items-center gap-3 flex-1 justify-end">
                   <span
                     className={`text-sm font-medium text-right leading-tight ${
-                      lastMatch.teams.away.id === TEAM_ID
+                      lastMatch.awayTeam.id === TEAM_ID
                         ? "text-brfc-blue font-bold"
                         : "text-slate-700"
                     }`}
                   >
-                    {lastMatch.teams.away.name}
+                    {lastMatch.awayTeam.name}
                   </span>
                   <div className="w-10 h-10 bg-slate-50 rounded-xl p-1.5 flex-shrink-0">
                     <img
-                      src={lastMatch.teams.away.logo}
-                      alt={lastMatch.teams.away.name}
+                      src={lastMatch.awayTeam.logo}
+                      alt={lastMatch.awayTeam.name}
                       className="w-full h-full object-contain"
                     />
                   </div>
@@ -452,15 +462,15 @@ export default function Dashboard() {
                         .filter(
                           (e) =>
                             e.type === "Goal" &&
-                            e.team.id === lastMatch.teams.home.id
+                            e.teamId === lastMatch.homeTeam.id
                         )
                         .map((e, i) => (
                           <p key={i} className="text-xs text-slate-600">
                             <span className="font-semibold">
-                              {e.player.name}
+                              {e.playerName}
                             </span>{" "}
                             <span className="text-muted">
-                              {e.time.elapsed}&apos;
+                              {e.minute}&apos;
                             </span>
                             {e.detail !== "Normal Goal" && (
                               <span className="text-muted ml-1">
@@ -476,15 +486,15 @@ export default function Dashboard() {
                         .filter(
                           (e) =>
                             e.type === "Goal" &&
-                            e.team.id === lastMatch.teams.away.id
+                            e.teamId === lastMatch.awayTeam.id
                         )
                         .map((e, i) => (
                           <p key={i} className="text-xs text-slate-600">
                             <span className="font-semibold">
-                              {e.player.name}
+                              {e.playerName}
                             </span>{" "}
                             <span className="text-muted">
-                              {e.time.elapsed}&apos;
+                              {e.minute}&apos;
                             </span>
                             {e.detail !== "Normal Goal" && (
                               <span className="text-muted ml-1">
@@ -510,27 +520,27 @@ export default function Dashboard() {
           ) : nextMatch ? (
             <Card title="Next Match" accent>
               <div className="text-xs text-muted mb-3 font-medium">
-                {formatDate(nextMatch.fixture.date)} &middot;{" "}
-                {formatTime(nextMatch.fixture.date)} &middot;{" "}
-                {nextMatch.league.round}
+                {formatDate(nextMatch.date)} &middot;{" "}
+                {formatTime(nextMatch.date)} &middot;{" "}
+                {nextMatch.leagueRound}
               </div>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3 flex-1">
                   <div className="w-10 h-10 bg-slate-50 rounded-xl p-1.5 flex-shrink-0">
                     <img
-                      src={nextMatch.teams.home.logo}
-                      alt={nextMatch.teams.home.name}
+                      src={nextMatch.homeTeam.logo}
+                      alt={nextMatch.homeTeam.name}
                       className="w-full h-full object-contain"
                     />
                   </div>
                   <span
                     className={`text-sm font-medium leading-tight ${
-                      nextMatch.teams.home.id === TEAM_ID
+                      nextMatch.homeTeam.id === TEAM_ID
                         ? "text-brfc-blue font-bold"
                         : "text-slate-700"
                     }`}
                   >
-                    {nextMatch.teams.home.name}
+                    {nextMatch.homeTeam.name}
                   </span>
                 </div>
                 <div className="text-center px-4">
@@ -539,17 +549,17 @@ export default function Dashboard() {
                 <div className="flex items-center gap-3 flex-1 justify-end">
                   <span
                     className={`text-sm font-medium text-right leading-tight ${
-                      nextMatch.teams.away.id === TEAM_ID
+                      nextMatch.awayTeam.id === TEAM_ID
                         ? "text-brfc-blue font-bold"
                         : "text-slate-700"
                     }`}
                   >
-                    {nextMatch.teams.away.name}
+                    {nextMatch.awayTeam.name}
                   </span>
                   <div className="w-10 h-10 bg-slate-50 rounded-xl p-1.5 flex-shrink-0">
                     <img
-                      src={nextMatch.teams.away.logo}
-                      alt={nextMatch.teams.away.name}
+                      src={nextMatch.awayTeam.logo}
+                      alt={nextMatch.awayTeam.name}
                       className="w-full h-full object-contain"
                     />
                   </div>
@@ -557,10 +567,10 @@ export default function Dashboard() {
               </div>
               <div className="flex items-center gap-3">
                 <span className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-brfc-blue text-white text-xs font-bold shadow-sm shadow-brfc-blue/20">
-                  {daysUntil(nextMatch.fixture.date)}
+                  {daysUntil(nextMatch.date)}
                 </span>
                 <span className="text-xs text-muted">
-                  {nextMatch.fixture.venue.name}
+                  {nextMatch.venueName}
                 </span>
               </div>
             </Card>
@@ -576,24 +586,22 @@ export default function Dashboard() {
           <Card title="Season Overview" accent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               <StatBox
-                value={team.all.goals.for}
+                value={team.goalsFor}
                 label="Goals Scored"
                 color="text-win"
               />
               <StatBox
-                value={team.all.goals.against}
+                value={team.goalsAgainst}
                 label="Goals Conceded"
                 color="text-loss"
               />
-              <StatBox value={team.all.played} label="Games Played" />
+              <StatBox value={team.played} label="Games Played" />
               <StatBox
                 value={`${Math.round(
-                  (team.all.win / team.all.played) * 100
+                  (team.wins / team.played) * 100
                 )}%`}
                 label="Win Rate"
-                color={
-                  team.all.win > team.all.lose ? "text-win" : "text-loss"
-                }
+                color={team.wins > team.losses ? "text-win" : "text-loss"}
               />
             </div>
           </Card>

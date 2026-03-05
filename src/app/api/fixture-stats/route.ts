@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getFixtureStats, getFixtureEvents } from "@/lib/api-football";
+import { transformEvents } from "@/lib/adapters/api-football-adapter";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -13,11 +14,12 @@ export async function GET(request: Request) {
   }
 
   try {
-    const [stats, events] = await Promise.all([
+    const [stats, rawEvents] = await Promise.all([
       getFixtureStats(fixtureId),
       getFixtureEvents(fixtureId),
     ]);
 
+    const events = transformEvents(rawEvents);
     return NextResponse.json({ stats, events });
   } catch (error) {
     console.error("Fixture stats error:", error);
