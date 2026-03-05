@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+:root {
+  --brfc-blue: #0047AB;
+  --brfc-blue-light: #E8F0FE;
+  --win: #22C55E;
+  --draw: #F59E0B;
+  --loss: #EF4444;
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-brfc-blue: var(--brfc-blue);
+  --color-brfc-blue-light: var(--brfc-blue-light);
+  --color-win: var(--win);
+  --color-draw: var(--draw);
+  --color-loss: var(--loss);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
