@@ -689,9 +689,6 @@ export default function Dashboard() {
         {!loading && seasonFixtures.length > 0 && (
           <>
             <Card title="Points Accumulation" accent>
-              <p className="text-xs text-muted mb-3">
-                Season progress vs promotion, playoff, and relegation pace
-              </p>
               <PointsChart fixtures={seasonFixtures} />
             </Card>
 

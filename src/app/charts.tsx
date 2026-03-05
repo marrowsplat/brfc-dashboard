@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   LineChart,
   Line,
@@ -212,6 +213,36 @@ function GoalsTooltip({
   );
 }
 
+// ─── Info panel ────────────────────────────────────────────
+
+function ChartInfo({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="mb-3">
+      <button
+        onClick={() => setOpen(!open)}
+        className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+        aria-expanded={open}
+      >
+        <span className="inline-flex items-center justify-center w-4 h-4 rounded-full border border-slate-300 text-[10px] font-semibold leading-none">
+          i
+        </span>
+        <span>{open ? "Hide" : "How is this calculated?"}</span>
+      </button>
+      {open && (
+        <div className="mt-2 text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 leading-relaxed">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Chart components ──────────────────────────────────────
 
 export function PointsChart({ fixtures }: { fixtures: Fixture[] }) {
@@ -219,7 +250,36 @@ export function PointsChart({ fixtures }: { fixtures: Fixture[] }) {
   if (data.length === 0) return null;
 
   return (
-    <div className="w-full h-64 sm:h-80">
+    <div>
+      <ChartInfo>
+        <p className="mb-1">
+          <strong className="text-slate-700">Solid blue line</strong> — Bristol
+          Rovers&apos; actual cumulative points (3 for a win, 1 for a draw).
+        </p>
+        <p className="mb-1">
+          <strong className="text-slate-700">Dashed pace lines</strong> — show
+          where a team &quot;should&quot; be at each match to hit a target total
+          over a 46-game League Two season, based on historical averages:
+        </p>
+        <ul className="list-disc list-inside ml-1 space-y-0.5">
+          <li>
+            <span className="text-green-600 font-semibold">Auto Promotion</span>{" "}
+            ≈ 82 pts (1.78 pts/game)
+          </li>
+          <li>
+            <span className="text-amber-600 font-semibold">Playoff Pace</span>{" "}
+            ≈ 70 pts (1.52 pts/game)
+          </li>
+          <li>
+            <span className="text-red-600 font-semibold">Relegation</span>{" "}
+            ≈ 45 pts (0.98 pts/game)
+          </li>
+        </ul>
+        <p className="mt-1 text-slate-400">
+          Hover over the chart to see match-by-match detail.
+        </p>
+      </ChartInfo>
+      <div className="w-full h-64 sm:h-80">
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
@@ -273,6 +333,7 @@ export function PointsChart({ fixtures }: { fixtures: Fixture[] }) {
           />
         </LineChart>
       </ResponsiveContainer>
+      </div>
     </div>
   );
 }
