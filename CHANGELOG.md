@@ -4,6 +4,25 @@ All notable changes to DashboardFC will be documented here. Copy each new entry 
 
 ---
 
+## v1.1 — 5 March 2026
+
+**Live current season data!** Upgraded to API-Football Pro and switched to 2025/26 League Two.
+
+### Changes
+- Upgraded to API-Football Pro tier
+- Switched from 2024/25 League One (test data) to live 2025/26 League Two season
+- Added abstraction layer: domain types + adapter pattern (provider-agnostic architecture)
+- Added version number in footer
+- Added this changelog
+
+### What this means
+- All stats are now real and up to date
+- Match events and goalscorers more reliable
+- Higher API limits (no more free tier workarounds)
+- Codebase ready to support additional data sources (e.g. xG)
+
+---
+
 ## v1.0 — 5 March 2026
 
 **First public release!** DashboardFC is live at [brfc-dashboard.vercel.app](https://brfc-dashboard.vercel.app).
