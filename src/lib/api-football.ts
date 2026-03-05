@@ -136,26 +136,80 @@ export async function getFixtureStats(fixtureId: string) {
   return data.response || [];
 }
 
-/** Match events (goals, cards, subs) — cached ~30 days */
+/**
+ * Match events (goals, cards, subs).
+ * Strategy: try multiple sources since the free tier is inconsistent.
+ * Never cache empty results so we always retry.
+ */
 export async function getFixtureEvents(fixtureId: string) {
-  // Try the events endpoint first
-  const data = (await fetchWithCache(
-    "/fixtures/events",
-    { fixture: fixtureId },
-    HOURS(24 * 30)
-  )) as { response: unknown[] };
-
-  if (data.response && data.response.length > 0) {
-    return data.response;
+  // 1. Check if the season fixtures (already cached) contain this match with events
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const seasonFixtures: any[] = await getSeasonFixtures();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const seasonMatch = seasonFixtures.find((f: any) => String(f.fixture.id) === String(fixtureId));
+  if (seasonMatch?.events && seasonMatch.events.length > 0) {
+    return seasonMatch.events;
   }
 
-  // Fallback: fetch the full fixture detail which includes events inline
-  const fixtureData = (await fetchWithCache(
-    "/fixtures",
-    { id: fixtureId },
-    HOURS(24 * 30)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  )) as { response: any[] };
+  // 2. Try the dedicated events endpoint
+  const eventsUrl = new URL(`${API_BASE}/fixtures/events`);
+  eventsUrl.searchParams.set("fixture", fixtureId);
+  const eventsCacheKey = eventsUrl.toString();
+  const eventsCached = cache.get(eventsCacheKey);
 
-  return fixtureData.response?.[0]?.events || [];
+  if (eventsCached && Date.now() < eventsCached.expiry) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const cachedResponse = (eventsCached.data as any).response;
+    if (cachedResponse && cachedResponse.length > 0) {
+      return cachedResponse;
+    }
+    // Cached but empty — fall through to try the fixture detail endpoint
+  } else {
+    // Not cached — fetch fresh
+    try {
+      const res = await fetch(eventsUrl.toString(), {
+        headers: { "x-apisports-key": API_KEY },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.response && json.response.length > 0) {
+          // Only cache non-empty results
+          cache.set(eventsCacheKey, { data: json, expiry: Date.now() + HOURS(24 * 30) });
+          return json.response;
+        }
+      }
+    } catch {
+      // Silently fall through to next strategy
+    }
+  }
+
+  // 3. Try fetching the full fixture detail (includes events inline)
+  const fixtureUrl = new URL(`${API_BASE}/fixtures`);
+  fixtureUrl.searchParams.set("id", fixtureId);
+  const fixtureCacheKey = fixtureUrl.toString();
+  const fixtureCached = cache.get(fixtureCacheKey);
+
+  if (fixtureCached && Date.now() < fixtureCached.expiry) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const events = (fixtureCached.data as any).response?.[0]?.events;
+    if (events && events.length > 0) return events;
+  } else {
+    try {
+      const res = await fetch(fixtureUrl.toString(), {
+        headers: { "x-apisports-key": API_KEY },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const events = json.response?.[0]?.events;
+        if (events && events.length > 0) {
+          cache.set(fixtureCacheKey, { data: json, expiry: Date.now() + HOURS(24 * 30) });
+          return events;
+        }
+      }
+    } catch {
+      // Silently fall through
+    }
+  }
+
+  return [];
 }
