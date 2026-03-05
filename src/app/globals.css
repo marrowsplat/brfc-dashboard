@@ -1,26 +1,106 @@
 @import "tailwindcss";
 
 :root {
+  /* Bristol Rovers brand */
   --brfc-blue: #0047AB;
+  --brfc-blue-dark: #003380;
   --brfc-blue-light: #E8F0FE;
-  --win: #22C55E;
-  --draw: #F59E0B;
-  --loss: #EF4444;
-  --background: #F8FAFC;
+  --brfc-gold: #D4A843;
+  --brfc-gold-light: #FDF6E3;
+
+  /* Result colours */
+  --win: #16A34A;
+  --win-light: #DCFCE7;
+  --draw: #D97706;
+  --draw-light: #FEF3C7;
+  --loss: #DC2626;
+  --loss-light: #FEE2E2;
+
+  /* Neutrals */
+  --background: #F1F5F9;
   --foreground: #0F172A;
+  --card-bg: #FFFFFF;
+  --card-border: #E2E8F0;
+  --card-header: #F8FAFC;
+  --muted: #94A3B8;
+  --subtle: #CBD5E1;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-brfc-blue: var(--brfc-blue);
+  --color-brfc-blue-dark: var(--brfc-blue-dark);
   --color-brfc-blue-light: var(--brfc-blue-light);
+  --color-brfc-gold: var(--brfc-gold);
+  --color-brfc-gold-light: var(--brfc-gold-light);
   --color-win: var(--win);
+  --color-win-light: var(--win-light);
   --color-draw: var(--draw);
+  --color-draw-light: var(--draw-light);
   --color-loss: var(--loss);
+  --color-loss-light: var(--loss-light);
+  --color-card-bg: var(--card-bg);
+  --color-card-border: var(--card-border);
+  --color-card-header: var(--card-header);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Card hover transition */
+.card-hover {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.card-hover:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+/* Header gradient */
+.header-gradient {
+  background: linear-gradient(135deg, var(--brfc-blue) 0%, var(--brfc-blue-dark) 100%);
+}
+
+/* Stat number animation */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.stat-animate {
+  animation: countUp 0.4s ease-out forwards;
+}
+
+/* Gold accent underline */
+.gold-accent {
+  position: relative;
+}
+.gold-accent::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 40px;
+  height: 3px;
+  background: var(--brfc-gold);
+  border-radius: 2px;
+}
+
+/* Result badge pulse on load */
+@keyframes badgePop {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.badge-animate {
+  animation: badgePop 0.3s ease-out forwards;
 }

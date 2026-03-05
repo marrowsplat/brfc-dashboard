@@ -44,16 +44,23 @@ const TEAM_ID = 1334;
 
 // ─── Components ────────────────────────────────────────────
 
-function ResultBadge({ result }: { result: "W" | "D" | "L" | null }) {
+function ResultBadge({
+  result,
+  delay = 0,
+}: {
+  result: "W" | "D" | "L" | null;
+  delay?: number;
+}) {
   if (!result) return null;
-  const colors = {
-    W: "bg-win text-white",
-    D: "bg-draw text-white",
-    L: "bg-loss text-white",
+  const styles = {
+    W: "bg-win text-white shadow-sm shadow-win/30",
+    D: "bg-draw text-white shadow-sm shadow-draw/30",
+    L: "bg-loss text-white shadow-sm shadow-loss/30",
   };
   return (
     <span
-      className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${colors[result]}`}
+      className={`badge-animate inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold ${styles[result]}`}
+      style={{ animationDelay: `${delay}ms` }}
     >
       {result}
     </span>
@@ -62,27 +69,46 @@ function ResultBadge({ result }: { result: "W" | "D" | "L" | null }) {
 
 function PositionBadge({ rank }: { rank: number }) {
   let color = "text-slate-600";
-  if (rank <= 3) color = "text-win";
-  else if (rank <= 7) color = "text-blue-500";
-  else if (rank >= 21) color = "text-loss";
-  return <span className={`text-5xl font-bold ${color}`}>{rank}</span>;
+  let bg = "bg-slate-100";
+  if (rank <= 3) {
+    color = "text-win";
+    bg = "bg-win-light";
+  } else if (rank <= 7) {
+    color = "text-blue-600";
+    bg = "bg-blue-50";
+  } else if (rank >= 21) {
+    color = "text-loss";
+    bg = "bg-loss-light";
+  }
+  return (
+    <div
+      className={`stat-animate inline-flex items-center justify-center w-20 h-20 rounded-2xl ${bg}`}
+    >
+      <span className={`text-4xl font-extrabold ${color}`}>{rank}</span>
+    </div>
+  );
 }
 
 function Card({
   title,
   children,
   className = "",
+  accent = false,
 }: {
   title: string;
   children: React.ReactNode;
   className?: string;
+  accent?: boolean;
 }) {
   return (
     <div
-      className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden ${className}`}
+      className={`card-hover bg-card-bg rounded-2xl shadow-sm border border-card-border overflow-hidden ${className}`}
     >
-      <div className="px-5 py-3 border-b border-slate-100 bg-slate-50">
-        <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider">
+      <div className="px-5 py-3 border-b border-card-border bg-card-header flex items-center gap-2">
+        {accent && (
+          <span className="w-1 h-4 rounded-full bg-brfc-gold inline-block" />
+        )}
+        <h2 className="text-xs font-semibold text-muted uppercase tracking-wider">
           {title}
         </h2>
       </div>
@@ -95,11 +121,28 @@ function LoadingCard({ title }: { title: string }) {
   return (
     <Card title={title}>
       <div className="animate-pulse space-y-3">
-        <div className="h-4 bg-slate-200 rounded w-3/4" />
-        <div className="h-4 bg-slate-200 rounded w-1/2" />
-        <div className="h-4 bg-slate-200 rounded w-2/3" />
+        <div className="h-4 bg-slate-200 rounded-full w-3/4" />
+        <div className="h-4 bg-slate-200 rounded-full w-1/2" />
+        <div className="h-4 bg-slate-200 rounded-full w-2/3" />
       </div>
     </Card>
+  );
+}
+
+function StatBox({
+  value,
+  label,
+  color = "text-slate-800",
+}: {
+  value: string | number;
+  label: string;
+  color?: string;
+}) {
+  return (
+    <div className="text-center">
+      <p className={`stat-animate text-3xl font-extrabold ${color}`}>{value}</p>
+      <p className="text-xs text-muted mt-1 font-medium">{label}</p>
+    </div>
   );
 }
 
@@ -158,16 +201,19 @@ export default function Dashboard() {
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
-        <div className="bg-red-50 border border-red-200 rounded-xl p-6 max-w-md text-center">
+        <div className="bg-loss-light border border-red-200 rounded-2xl p-8 max-w-md text-center">
+          <div className="w-12 h-12 rounded-full bg-loss/10 flex items-center justify-center mx-auto mb-4">
+            <span className="text-loss text-xl">!</span>
+          </div>
           <h2 className="text-red-800 font-semibold text-lg mb-2">
             Unable to load dashboard
           </h2>
-          <p className="text-red-600 text-sm">{error}</p>
+          <p className="text-red-600 text-sm mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="mt-4 px-4 py-2 bg-red-100 text-red-700 rounded-lg text-sm font-medium hover:bg-red-200 transition-colors"
+            className="px-5 py-2.5 bg-brfc-blue text-white rounded-xl text-sm font-medium hover:bg-brfc-blue-dark transition-colors"
           >
-            Retry
+            Try Again
           </button>
         </div>
       </div>
@@ -175,16 +221,15 @@ export default function Dashboard() {
   }
 
   const team = standings?.team;
-  const lastMatch = lastFixtures.length > 0 ? lastFixtures[lastFixtures.length - 1] : null;
+  const lastMatch =
+    lastFixtures.length > 0 ? lastFixtures[lastFixtures.length - 1] : null;
   const nextMatch = nextFixtures.length > 0 ? nextFixtures[0] : null;
 
   // Form from last 6 results
-  const recentForm = lastFixtures
-    .slice(-6)
-    .map((f) => ({
-      fixture: f,
-      result: resultFor(f, TEAM_ID),
-    }));
+  const recentForm = lastFixtures.slice(-6).map((f) => ({
+    fixture: f,
+    result: resultFor(f, TEAM_ID),
+  }));
 
   // Points per game
   const ppg = team ? (team.points / team.all.played).toFixed(2) : "-";
@@ -192,63 +237,67 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background">
       {/* ─── Header ─── */}
-      <header className="bg-brfc-blue text-white">
-        <div className="max-w-5xl mx-auto px-4 py-6">
-          <div className="flex items-center gap-4">
+      <header className="header-gradient text-white">
+        <div className="max-w-5xl mx-auto px-4 py-8 sm:px-6">
+          <div className="flex items-center gap-5">
             {team && (
-              <img
-                src={team.team.logo}
-                alt="Bristol Rovers"
-                className="w-14 h-14"
-              />
+              <div className="w-16 h-16 bg-white/10 rounded-2xl p-2 backdrop-blur-sm">
+                <img
+                  src={team.team.logo}
+                  alt="Bristol Rovers"
+                  className="w-full h-full object-contain"
+                />
+              </div>
             )}
             <div>
-              <h1 className="text-2xl font-bold">Bristol Rovers FC</h1>
-              <p className="text-blue-200 text-sm">
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                Bristol Rovers FC
+              </h1>
+              <p className="text-blue-200 text-sm mt-0.5">
                 {standings?.leagueName || "League Two"} — 2025/26 Season
               </p>
             </div>
           </div>
           {lastUpdated && (
-            <p className="text-blue-300 text-xs mt-2">
-              Updated {lastUpdated.toLocaleTimeString("en-GB")}
+            <p className="text-blue-300/70 text-xs mt-4">
+              Last updated {lastUpdated.toLocaleTimeString("en-GB")}
             </p>
           )}
         </div>
       </header>
 
       {/* ─── Main Content ─── */}
-      <main className="max-w-5xl mx-auto px-4 py-6 space-y-6">
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-5">
         {/* Row 1: Position + Form + PPG */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* League Position */}
           {loading ? (
             <LoadingCard title="League Position" />
           ) : team ? (
-            <Card title="League Position">
-              <div className="flex items-center gap-4">
+            <Card title="League Position" accent>
+              <div className="flex items-center gap-5">
                 <PositionBadge rank={team.rank} />
-                <div className="text-sm text-slate-600 space-y-1">
+                <div className="text-sm text-slate-600 space-y-1.5">
                   <p>
-                    <span className="font-semibold text-slate-900">
+                    <span className="font-bold text-slate-900 text-lg">
                       {team.points}
                     </span>{" "}
-                    points
+                    <span className="text-muted">pts</span>
                   </p>
-                  <p>
-                    P{team.all.played} W{team.all.win} D{team.all.draw} L
-                    {team.all.lose}
+                  <p className="text-xs text-muted">
+                    P{team.all.played} &nbsp;W{team.all.win} &nbsp;D
+                    {team.all.draw} &nbsp;L{team.all.lose}
                   </p>
-                  <p>
+                  <p className="text-xs">
                     GD{" "}
                     <span
-                      className={
+                      className={`font-bold ${
                         team.goalsDiff > 0
-                          ? "text-win font-semibold"
+                          ? "text-win"
                           : team.goalsDiff < 0
-                          ? "text-loss font-semibold"
-                          : ""
-                      }
+                          ? "text-loss"
+                          : "text-muted"
+                      }`}
                     >
                       {team.goalsDiff > 0 ? "+" : ""}
                       {team.goalsDiff}
@@ -265,22 +314,22 @@ export default function Dashboard() {
           {loading ? (
             <LoadingCard title="Recent Form" />
           ) : (
-            <Card title="Recent Form">
-              <div className="flex gap-2 mb-3">
+            <Card title="Recent Form" accent>
+              <div className="flex gap-2 mb-4">
                 {recentForm.map((f, i) => (
-                  <ResultBadge key={i} result={f.result} />
+                  <ResultBadge key={i} result={f.result} delay={i * 80} />
                 ))}
               </div>
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 {recentForm.map((f, i) => {
                   const isHome = f.fixture.teams.home.id === TEAM_ID;
                   const opponent = isHome
                     ? f.fixture.teams.away.name
                     : f.fixture.teams.home.name;
                   return (
-                    <p key={i} className="text-xs text-slate-500">
-                      <span className="font-medium text-slate-700">
-                        {f.fixture.goals.home}-{f.fixture.goals.away}
+                    <p key={i} className="text-xs text-muted">
+                      <span className="font-semibold text-slate-700">
+                        {f.fixture.goals.home}–{f.fixture.goals.away}
                       </span>{" "}
                       {isHome ? "vs" : "@"} {opponent}
                     </p>
@@ -294,22 +343,30 @@ export default function Dashboard() {
           {loading ? (
             <LoadingCard title="Points Per Game" />
           ) : (
-            <Card title="Points Per Game">
-              <div className="flex items-baseline gap-2">
-                <span className="text-5xl font-bold text-brfc-blue">{ppg}</span>
-                <span className="text-sm text-slate-500">pts/game</span>
+            <Card title="Points Per Game" accent>
+              <div className="flex items-baseline gap-2 mb-4">
+                <span className="stat-animate text-5xl font-extrabold text-brfc-blue">
+                  {ppg}
+                </span>
+                <span className="text-sm text-muted font-medium">
+                  pts/game
+                </span>
               </div>
               {team && (
-                <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600">
-                  <div>
-                    <span className="block text-slate-400">Home</span>
-                    <span className="font-semibold text-slate-800">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-slate-50 rounded-xl px-3 py-2.5">
+                    <span className="block text-[10px] uppercase tracking-wider text-muted font-semibold mb-0.5">
+                      Home
+                    </span>
+                    <span className="font-bold text-sm text-slate-800">
                       {team.home.win}W {team.home.draw}D {team.home.lose}L
                     </span>
                   </div>
-                  <div>
-                    <span className="block text-slate-400">Away</span>
-                    <span className="font-semibold text-slate-800">
+                  <div className="bg-slate-50 rounded-xl px-3 py-2.5">
+                    <span className="block text-[10px] uppercase tracking-wider text-muted font-semibold mb-0.5">
+                      Away
+                    </span>
+                    <span className="font-bold text-sm text-slate-800">
                       {team.away.win}W {team.away.draw}D {team.away.lose}L
                     </span>
                   </div>
@@ -325,71 +382,76 @@ export default function Dashboard() {
           {loading ? (
             <LoadingCard title="Last Match" />
           ) : lastMatch ? (
-            <Card title="Last Match">
-              <div className="text-xs text-slate-400 mb-2">
-                {formatDate(lastMatch.fixture.date)} •{" "}
+            <Card title="Last Match" accent>
+              <div className="text-xs text-muted mb-3 font-medium">
+                {formatDate(lastMatch.fixture.date)} &middot;{" "}
                 {lastMatch.league.round}
               </div>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <img
-                    src={lastMatch.teams.home.logo}
-                    alt={lastMatch.teams.home.name}
-                    className="w-8 h-8"
-                  />
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="w-10 h-10 bg-slate-50 rounded-xl p-1.5 flex-shrink-0">
+                    <img
+                      src={lastMatch.teams.home.logo}
+                      alt={lastMatch.teams.home.name}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
                   <span
-                    className={`text-sm font-medium ${
+                    className={`text-sm font-medium leading-tight ${
                       lastMatch.teams.home.id === TEAM_ID
                         ? "text-brfc-blue font-bold"
-                        : ""
+                        : "text-slate-700"
                     }`}
                   >
                     {lastMatch.teams.home.name}
                   </span>
                 </div>
-                <div className="text-center">
-                  <span className="text-2xl font-bold">
-                    {lastMatch.goals.home} - {lastMatch.goals.away}
+                <div className="text-center px-4">
+                  <span className="text-3xl font-extrabold tracking-tight">
+                    {lastMatch.goals.home} – {lastMatch.goals.away}
                   </span>
                   {lastMatch.score.halftime.home !== null && (
-                    <p className="text-xs text-slate-400">
-                      HT {lastMatch.score.halftime.home}-
+                    <p className="text-[10px] text-muted mt-0.5 font-medium">
+                      HT {lastMatch.score.halftime.home}–
                       {lastMatch.score.halftime.away}
                     </p>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3 flex-1 justify-end">
                   <span
-                    className={`text-sm font-medium ${
+                    className={`text-sm font-medium text-right leading-tight ${
                       lastMatch.teams.away.id === TEAM_ID
                         ? "text-brfc-blue font-bold"
-                        : ""
+                        : "text-slate-700"
                     }`}
                   >
                     {lastMatch.teams.away.name}
                   </span>
-                  <img
-                    src={lastMatch.teams.away.logo}
-                    alt={lastMatch.teams.away.name}
-                    className="w-8 h-8"
-                  />
+                  <div className="w-10 h-10 bg-slate-50 rounded-xl p-1.5 flex-shrink-0">
+                    <img
+                      src={lastMatch.teams.away.logo}
+                      alt={lastMatch.teams.away.name}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
                 </div>
               </div>
               <ResultBadge result={resultFor(lastMatch, TEAM_ID)} />
               {/* Goal events */}
               {lastMatchEvents.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-slate-100 space-y-1">
+                <div className="mt-4 pt-4 border-t border-card-border space-y-1.5">
                   {lastMatchEvents
                     .filter((e) => e.type === "Goal")
                     .map((e, i) => (
                       <p key={i} className="text-xs text-slate-600">
-                        <span className="font-medium">⚽ {e.player.name}</span>{" "}
-                        {e.time.elapsed}&apos;
+                        <span className="font-semibold">
+                          {e.player.name}
+                        </span>{" "}
+                        <span className="text-muted">
+                          {e.time.elapsed}&apos;
+                        </span>
                         {e.detail !== "Normal Goal" && (
-                          <span className="text-slate-400">
-                            {" "}
-                            ({e.detail})
-                          </span>
+                          <span className="text-muted ml-1">({e.detail})</span>
                         )}
                       </p>
                     ))}
@@ -398,7 +460,7 @@ export default function Dashboard() {
             </Card>
           ) : (
             <Card title="Last Match">
-              <p className="text-slate-400 text-sm">No recent match data</p>
+              <p className="text-muted text-sm">No recent match data</p>
             </Card>
           )}
 
@@ -406,110 +468,107 @@ export default function Dashboard() {
           {loading ? (
             <LoadingCard title="Next Match" />
           ) : nextMatch ? (
-            <Card title="Next Match">
-              <div className="text-xs text-slate-400 mb-2">
-                {formatDate(nextMatch.fixture.date)} •{" "}
-                {formatTime(nextMatch.fixture.date)} •{" "}
+            <Card title="Next Match" accent>
+              <div className="text-xs text-muted mb-3 font-medium">
+                {formatDate(nextMatch.fixture.date)} &middot;{" "}
+                {formatTime(nextMatch.fixture.date)} &middot;{" "}
                 {nextMatch.league.round}
               </div>
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <img
-                    src={nextMatch.teams.home.logo}
-                    alt={nextMatch.teams.home.name}
-                    className="w-8 h-8"
-                  />
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="w-10 h-10 bg-slate-50 rounded-xl p-1.5 flex-shrink-0">
+                    <img
+                      src={nextMatch.teams.home.logo}
+                      alt={nextMatch.teams.home.name}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
                   <span
-                    className={`text-sm font-medium ${
+                    className={`text-sm font-medium leading-tight ${
                       nextMatch.teams.home.id === TEAM_ID
                         ? "text-brfc-blue font-bold"
-                        : ""
+                        : "text-slate-700"
                     }`}
                   >
                     {nextMatch.teams.home.name}
                   </span>
                 </div>
-                <div className="text-sm text-slate-400">vs</div>
-                <div className="flex items-center gap-2">
+                <div className="text-center px-4">
+                  <span className="text-2xl font-bold text-muted">vs</span>
+                </div>
+                <div className="flex items-center gap-3 flex-1 justify-end">
                   <span
-                    className={`text-sm font-medium ${
+                    className={`text-sm font-medium text-right leading-tight ${
                       nextMatch.teams.away.id === TEAM_ID
                         ? "text-brfc-blue font-bold"
-                        : ""
+                        : "text-slate-700"
                     }`}
                   >
                     {nextMatch.teams.away.name}
                   </span>
-                  <img
-                    src={nextMatch.teams.away.logo}
-                    alt={nextMatch.teams.away.name}
-                    className="w-8 h-8"
-                  />
+                  <div className="w-10 h-10 bg-slate-50 rounded-xl p-1.5 flex-shrink-0">
+                    <img
+                      src={nextMatch.teams.away.logo}
+                      alt={nextMatch.teams.away.name}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className="inline-flex items-center px-3 py-1 rounded-full bg-brfc-blue-light text-brfc-blue text-xs font-semibold">
+                <span className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-brfc-blue text-white text-xs font-bold shadow-sm shadow-brfc-blue/20">
                   {daysUntil(nextMatch.fixture.date)}
                 </span>
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-muted">
                   {nextMatch.fixture.venue.name}
                 </span>
               </div>
             </Card>
           ) : (
             <Card title="Next Match">
-              <p className="text-slate-400 text-sm">No upcoming fixtures</p>
+              <p className="text-muted text-sm">No upcoming fixtures</p>
             </Card>
           )}
         </div>
 
-        {/* Row 3: Season Goals Overview (placeholder for Phase 3 charts) */}
+        {/* Row 3: Season Overview */}
         {!loading && team && (
-          <Card title="Season Overview">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-              <div>
-                <p className="text-3xl font-bold text-win">
-                  {team.all.goals.for}
-                </p>
-                <p className="text-xs text-slate-500 mt-1">Goals Scored</p>
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-loss">
-                  {team.all.goals.against}
-                </p>
-                <p className="text-xs text-slate-500 mt-1">Goals Conceded</p>
-              </div>
-              <div>
-                <p className="text-3xl font-bold text-slate-800">
-                  {team.all.played}
-                </p>
-                <p className="text-xs text-slate-500 mt-1">Games Played</p>
-              </div>
-              <div>
-                <p
-                  className={`text-3xl font-bold ${
-                    team.all.win > team.all.lose ? "text-win" : "text-loss"
-                  }`}
-                >
-                  {Math.round((team.all.win / team.all.played) * 100)}%
-                </p>
-                <p className="text-xs text-slate-500 mt-1">Win Rate</p>
-              </div>
+          <Card title="Season Overview" accent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <StatBox
+                value={team.all.goals.for}
+                label="Goals Scored"
+                color="text-win"
+              />
+              <StatBox
+                value={team.all.goals.against}
+                label="Goals Conceded"
+                color="text-loss"
+              />
+              <StatBox value={team.all.played} label="Games Played" />
+              <StatBox
+                value={`${Math.round(
+                  (team.all.win / team.all.played) * 100
+                )}%`}
+                label="Win Rate"
+                color={
+                  team.all.win > team.all.lose ? "text-win" : "text-loss"
+                }
+              />
             </div>
-            <p className="text-xs text-slate-400 mt-4 text-center">
-              📊 Trend charts coming in Phase 3
-            </p>
           </Card>
         )}
       </main>
 
       {/* ─── Footer ─── */}
-      <footer className="max-w-5xl mx-auto px-4 py-6 text-center text-xs text-slate-400">
-        <p>
-          BRFC Dashboard • Data from{" "}
+      <footer className="max-w-5xl mx-auto px-4 sm:px-6 py-8 text-center">
+        <p className="text-xs text-muted">
+          <span className="font-semibold text-brfc-gold">DashboardFC</span>
+          <span className="mx-2 text-subtle">&middot;</span>
+          Data from{" "}
           <a
             href="https://www.api-football.com"
-            className="underline hover:text-slate-600"
+            className="underline hover:text-slate-600 transition-colors"
             target="_blank"
             rel="noopener noreferrer"
           >
