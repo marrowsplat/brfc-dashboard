@@ -206,6 +206,157 @@ function StatBar({
   );
 }
 
+// ─── League Table ──────────────────────────────────────────
+
+function LeagueTable({
+  table,
+  teamId,
+}: {
+  table: StandingEntry[];
+  teamId: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  const teamIdx = table.findIndex((e) => e.team.id === teamId);
+
+  // Compact view: show 2 above and 2 below Rovers (min 5 rows)
+  const windowSize = 2;
+  const startIdx = Math.max(0, teamIdx - windowSize);
+  const endIdx = Math.min(table.length, teamIdx + windowSize + 1);
+  const displayTable = expanded ? table : table.slice(startIdx, endIdx);
+
+  // Zone boundaries for League Two
+  const promoZone = 3; // auto promotion: 1-3
+  const playoffZone = 7; // playoffs: 4-7
+  const relegationZone = table.length - 1; // bottom 2: 23-24
+
+  function zoneIndicator(rank: number) {
+    if (rank <= promoZone) return "bg-green-500";
+    if (rank <= playoffZone) return "bg-amber-400";
+    if (rank >= relegationZone) return "bg-red-500";
+    return "bg-transparent";
+  }
+
+  return (
+    <div>
+      {/* Show ellipsis at top if compact view doesn't start at rank 1 */}
+      {!expanded && startIdx > 0 && (
+        <p className="text-xs text-slate-300 text-center mb-1">···</p>
+      )}
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-[10px] uppercase tracking-wider text-muted border-b border-slate-100">
+              <th className="w-1"></th>
+              <th className="text-left py-2 pl-2 font-semibold">#</th>
+              <th className="text-left py-2 font-semibold">Team</th>
+              <th className="text-center py-2 font-semibold">P</th>
+              <th className="text-center py-2 font-semibold">W</th>
+              <th className="text-center py-2 font-semibold">D</th>
+              <th className="text-center py-2 font-semibold">L</th>
+              <th className="text-center py-2 font-semibold">GD</th>
+              <th className="text-center py-2 pr-2 font-semibold">Pts</th>
+            </tr>
+          </thead>
+          <tbody>
+            {displayTable.map((entry) => {
+              const isRovers = entry.team.id === teamId;
+              return (
+                <tr
+                  key={entry.rank}
+                  className={`border-b border-slate-50 transition-colors ${
+                    isRovers
+                      ? "bg-brfc-blue/5 font-bold"
+                      : "hover:bg-slate-50"
+                  }`}
+                >
+                  <td className="w-1 p-0">
+                    <div
+                      className={`w-1 h-full min-h-[32px] rounded-r-full ${zoneIndicator(
+                        entry.rank
+                      )}`}
+                    />
+                  </td>
+                  <td className="py-2 pl-2 text-muted">{entry.rank}</td>
+                  <td className="py-2">
+                    <div className="flex items-center gap-2">
+                      <img
+                        src={entry.team.logo}
+                        alt={entry.team.name}
+                        className="w-4 h-4 object-contain"
+                      />
+                      <span
+                        className={`truncate max-w-[120px] sm:max-w-none ${
+                          isRovers ? "text-brfc-blue" : "text-slate-700"
+                        }`}
+                      >
+                        {entry.team.name}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="py-2 text-center text-muted">
+                    {entry.played}
+                  </td>
+                  <td className="py-2 text-center text-muted">{entry.wins}</td>
+                  <td className="py-2 text-center text-muted">
+                    {entry.draws}
+                  </td>
+                  <td className="py-2 text-center text-muted">
+                    {entry.losses}
+                  </td>
+                  <td
+                    className={`py-2 text-center font-semibold ${
+                      entry.goalsDiff > 0
+                        ? "text-win"
+                        : entry.goalsDiff < 0
+                        ? "text-loss"
+                        : "text-muted"
+                    }`}
+                  >
+                    {entry.goalsDiff > 0 ? "+" : ""}
+                    {entry.goalsDiff}
+                  </td>
+                  <td
+                    className={`py-2 text-center pr-2 font-bold ${
+                      isRovers ? "text-brfc-blue" : "text-slate-800"
+                    }`}
+                  >
+                    {entry.points}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {/* Show ellipsis at bottom if compact view doesn't end at last rank */}
+      {!expanded && endIdx < table.length && (
+        <p className="text-xs text-slate-300 text-center mt-1">···</p>
+      )}
+      {/* Zone legend + expand toggle */}
+      <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
+        <div className="flex items-center gap-3 text-[10px] text-muted">
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-green-500" /> Promotion
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-amber-400" /> Playoffs
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-red-500" /> Relegation
+          </span>
+        </div>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="text-xs text-brfc-blue hover:text-brfc-blue-dark font-medium transition-colors"
+        >
+          {expanded ? "Show less" : "Full table"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Dashboard ─────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -294,6 +445,35 @@ export default function Dashboard() {
     result: resultFor(f, TEAM_ID),
   }));
 
+  // Form stats
+  const formPoints = recentForm.reduce((sum, f) => {
+    if (f.result === "W") return sum + 3;
+    if (f.result === "D") return sum + 1;
+    return sum;
+  }, 0);
+  const formMax = recentForm.length * 3;
+
+  // Unbeaten / winless run from most recent backwards
+  let unbeatenRun = 0;
+  let winlessRun = 0;
+  let cleanSheets = 0;
+  const reversed = [...lastFixtures].reverse();
+  for (const f of reversed) {
+    const r = resultFor(f, TEAM_ID);
+    if (r === "W" || r === "D") unbeatenRun++;
+    else break;
+  }
+  for (const f of reversed) {
+    const r = resultFor(f, TEAM_ID);
+    if (r === "D" || r === "L") winlessRun++;
+    else break;
+  }
+  for (const f of recentForm.map((rf) => rf.fixture)) {
+    const isHome = f.homeTeam.id === TEAM_ID;
+    const conceded = isHome ? f.awayGoals : f.homeGoals;
+    if (conceded === 0) cleanSheets++;
+  }
+
   // Points per game
   const ppg = team ? (team.points / team.played).toFixed(2) : "-";
 
@@ -378,10 +558,30 @@ export default function Dashboard() {
             <LoadingCard title="Recent Form" />
           ) : (
             <Card title="Recent Form" accent>
-              <div className="flex gap-2 mb-4">
+              <div className="flex gap-2 mb-3">
                 {recentForm.map((f, i) => (
                   <ResultBadge key={i} result={f.result} delay={i * 80} />
                 ))}
+              </div>
+              <div className="flex gap-3 mb-3 text-xs">
+                <span className="bg-slate-50 rounded-lg px-2.5 py-1.5 font-semibold text-slate-700">
+                  {formPoints}/{formMax} pts
+                </span>
+                {unbeatenRun >= 3 && (
+                  <span className="bg-win-light rounded-lg px-2.5 py-1.5 font-semibold text-win">
+                    {unbeatenRun} unbeaten
+                  </span>
+                )}
+                {winlessRun >= 3 && unbeatenRun < 3 && (
+                  <span className="bg-loss-light rounded-lg px-2.5 py-1.5 font-semibold text-loss">
+                    {winlessRun} without a win
+                  </span>
+                )}
+                {cleanSheets > 0 && (
+                  <span className="bg-blue-50 rounded-lg px-2.5 py-1.5 font-semibold text-blue-600">
+                    {cleanSheets} clean sheet{cleanSheets !== 1 ? "s" : ""}
+                  </span>
+                )}
               </div>
               <div className="space-y-1.5">
                 {recentForm.map((f, i) => {
@@ -685,7 +885,14 @@ export default function Dashboard() {
           </Card>
         )}
 
-        {/* Row 4: Season Charts */}
+        {/* Row 4: League Table */}
+        {!loading && standings && standings.table.length > 0 && (
+          <Card title="League Table" accent>
+            <LeagueTable table={standings.table} teamId={TEAM_ID} />
+          </Card>
+        )}
+
+        {/* Row 5: Season Charts */}
         {!loading && seasonFixtures.length > 0 && (
           <>
             <Card title="Points Accumulation" accent>
