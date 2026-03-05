@@ -4,6 +4,28 @@ All notable changes to DashboardFC will be documented here. Copy each new entry 
 
 ---
 
+## v1.21 — 5 March 2026
+
+**Big feature drop — charts, tables, squad stats, and season comparison!**
+
+### New
+- **Points Accumulation chart** — line chart tracking cumulative points vs promotion, playoff, and relegation pace lines, with a "How is this calculated?" info explainer
+- **Historical comparison** — 2024/25 season overlaid as a dotted grey line on the Points chart so you can compare trajectories
+- **Goals Trend chart** — cumulative goals scored vs conceded over the season
+- **Home vs Away chart** — grouped bar chart comparing home/away wins, draws, losses, goals, and points
+- **League Table widget** — compact 5-row view centred on Rovers with colour-coded promotion/playoff/relegation zones and a "Full table" expand toggle
+- **Squad Stats table** — full squad with photo, position, appearances, goals, assists, cards, and rating. Sortable by Goals, Assists, Apps, Cards, or Rating. Top 10 by default with expand to full squad
+- **Enhanced form guide** — now shows points from last 6, unbeaten/winless run streak, and clean sheet count as stat pills
+
+### Under the hood
+- New `/api/players` endpoint with paginated API-Football player data
+- New `/api/historical-fixtures` endpoint for past season comparison
+- PlayerStats domain type and adapter transform
+- Recharts 3.7.0 for all chart components
+- Charts split into dedicated `charts.tsx` module
+
+---
+
 ## v1.2 — 5 March 2026
 
 **Match stats and mobile polish!**

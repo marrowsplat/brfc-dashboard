@@ -1057,7 +1057,7 @@ export default function Dashboard() {
       <footer className="max-w-5xl mx-auto px-4 sm:px-6 py-8 text-center">
         <p className="text-xs text-muted">
           <span className="font-semibold text-brfc-gold">DashboardFC</span>{" "}
-          <span className="text-subtle">v1.2</span>
+          <span className="text-subtle">v1.21</span>
           <span className="mx-2 text-subtle">&middot;</span>
           Data from{" "}
           <a
