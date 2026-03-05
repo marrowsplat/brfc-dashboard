@@ -57,6 +57,18 @@ export interface Fixture {
   halftimeAway: number | null;
 }
 
+// ─── Match Stats ──────────────────────────────────────────
+
+export interface MatchStats {
+  possession: { home: string | null; away: string | null };
+  shotsOnGoal: { home: number | null; away: number | null };
+  totalShots: { home: number | null; away: number | null };
+  cornerKicks: { home: number | null; away: number | null };
+  fouls: { home: number | null; away: number | null };
+  yellowCards: { home: number | null; away: number | null };
+  redCards: { home: number | null; away: number | null };
+}
+
 // ─── Match Events ──────────────────────────────────────────
 
 export interface FixtureEvent {

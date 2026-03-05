@@ -6,6 +6,7 @@ import type {
   StandingsResponse,
   Fixture,
   FixtureEvent,
+  MatchStats,
 } from "@/lib/domain-types";
 
 // ─── Helpers ───────────────────────────────────────────────
@@ -164,6 +165,46 @@ function StatBox({
   );
 }
 
+function StatBar({
+  label,
+  home,
+  away,
+}: {
+  label: string;
+  home: string | number | null;
+  away: string | number | null;
+}) {
+  if (home === null && away === null) return null;
+  const homeStr = String(home ?? "-");
+  const awayStr = String(away ?? "-");
+
+  // Parse numeric values for the bar width
+  const homeNum = parseFloat(homeStr) || 0;
+  const awayNum = parseFloat(awayStr) || 0;
+  const total = homeNum + awayNum || 1;
+  const homePct = Math.round((homeNum / total) * 100);
+
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between text-xs">
+        <span className="font-semibold text-slate-700">{homeStr}</span>
+        <span className="text-muted font-medium">{label}</span>
+        <span className="font-semibold text-slate-700">{awayStr}</span>
+      </div>
+      <div className="flex h-1.5 rounded-full overflow-hidden bg-slate-100">
+        <div
+          className="bg-brfc-blue rounded-full transition-all duration-500"
+          style={{ width: `${homePct}%` }}
+        />
+        <div
+          className="bg-slate-300 rounded-full transition-all duration-500"
+          style={{ width: `${100 - homePct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ─── Dashboard ─────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -171,6 +212,7 @@ export default function Dashboard() {
   const [lastFixtures, setLastFixtures] = useState<Fixture[]>([]);
   const [nextFixtures, setNextFixtures] = useState<Fixture[]>([]);
   const [lastMatchEvents, setLastMatchEvents] = useState<FixtureEvent[]>([]);
+  const [lastMatchStats, setLastMatchStats] = useState<MatchStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -202,6 +244,7 @@ export default function Dashboard() {
           );
           const eventsData = await eventsRes.json();
           setLastMatchEvents(eventsData.events || []);
+          setLastMatchStats(eventsData.stats || null);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to load data");
@@ -254,9 +297,9 @@ export default function Dashboard() {
       {/* ─── Header ─── */}
       <header className="header-gradient text-white">
         <div className="max-w-5xl mx-auto px-4 py-8 sm:px-6">
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-3 sm:gap-5">
             {team && (
-              <div className="w-16 h-16 bg-white/10 rounded-2xl p-2 backdrop-blur-sm">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white/10 rounded-xl sm:rounded-2xl p-1.5 sm:p-2 backdrop-blur-sm flex-shrink-0">
                 <img
                   src={team.team.logo}
                   alt="Bristol Rovers"
@@ -264,11 +307,11 @@ export default function Dashboard() {
                 />
               </div>
             )}
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight truncate">
                 Bristol Rovers FC
               </h1>
-              <p className="text-blue-200 text-sm mt-0.5">
+              <p className="text-blue-200 text-xs sm:text-sm mt-0.5">
                 {standings?.leagueName || "League Two"} — 2025/26 Season
               </p>
             </div>
@@ -406,7 +449,7 @@ export default function Dashboard() {
               </div>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3 flex-1">
-                  <div className="w-10 h-10 bg-slate-50 rounded-xl p-1.5 flex-shrink-0">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-slate-50 rounded-lg sm:rounded-xl p-1 sm:p-1.5 flex-shrink-0">
                     <img
                       src={lastMatch.homeTeam.logo}
                       alt={lastMatch.homeTeam.name}
@@ -414,7 +457,7 @@ export default function Dashboard() {
                     />
                   </div>
                   <span
-                    className={`text-sm font-medium leading-tight ${
+                    className={`text-xs sm:text-sm font-medium leading-tight truncate ${
                       lastMatch.homeTeam.id === TEAM_ID
                         ? "text-brfc-blue font-bold"
                         : "text-slate-700"
@@ -424,7 +467,7 @@ export default function Dashboard() {
                   </span>
                 </div>
                 <div className="text-center px-4">
-                  <span className="text-3xl font-extrabold tracking-tight">
+                  <span className="text-2xl sm:text-3xl font-extrabold tracking-tight">
                     {lastMatch.homeGoals} – {lastMatch.awayGoals}
                   </span>
                   {lastMatch.halftimeHome !== null && (
@@ -435,7 +478,7 @@ export default function Dashboard() {
                 </div>
                 <div className="flex items-center gap-3 flex-1 justify-end">
                   <span
-                    className={`text-sm font-medium text-right leading-tight ${
+                    className={`text-xs sm:text-sm font-medium text-right leading-tight truncate ${
                       lastMatch.awayTeam.id === TEAM_ID
                         ? "text-brfc-blue font-bold"
                         : "text-slate-700"
@@ -443,7 +486,7 @@ export default function Dashboard() {
                   >
                     {lastMatch.awayTeam.name}
                   </span>
-                  <div className="w-10 h-10 bg-slate-50 rounded-xl p-1.5 flex-shrink-0">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-slate-50 rounded-lg sm:rounded-xl p-1 sm:p-1.5 flex-shrink-0">
                     <img
                       src={lastMatch.awayTeam.logo}
                       alt={lastMatch.awayTeam.name}
@@ -507,6 +550,36 @@ export default function Dashboard() {
                   </div>
                 </div>
               )}
+              {/* Match stats */}
+              {lastMatchStats && (
+                <div className="mt-4 pt-4 border-t border-card-border space-y-2.5">
+                  <StatBar
+                    label="Possession"
+                    home={lastMatchStats.possession.home}
+                    away={lastMatchStats.possession.away}
+                  />
+                  <StatBar
+                    label="Shots on Target"
+                    home={lastMatchStats.shotsOnGoal.home}
+                    away={lastMatchStats.shotsOnGoal.away}
+                  />
+                  <StatBar
+                    label="Total Shots"
+                    home={lastMatchStats.totalShots.home}
+                    away={lastMatchStats.totalShots.away}
+                  />
+                  <StatBar
+                    label="Corners"
+                    home={lastMatchStats.cornerKicks.home}
+                    away={lastMatchStats.cornerKicks.away}
+                  />
+                  <StatBar
+                    label="Fouls"
+                    home={lastMatchStats.fouls.home}
+                    away={lastMatchStats.fouls.away}
+                  />
+                </div>
+              )}
             </Card>
           ) : (
             <Card title="Last Match">
@@ -526,7 +599,7 @@ export default function Dashboard() {
               </div>
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3 flex-1">
-                  <div className="w-10 h-10 bg-slate-50 rounded-xl p-1.5 flex-shrink-0">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-slate-50 rounded-lg sm:rounded-xl p-1 sm:p-1.5 flex-shrink-0">
                     <img
                       src={nextMatch.homeTeam.logo}
                       alt={nextMatch.homeTeam.name}
@@ -534,7 +607,7 @@ export default function Dashboard() {
                     />
                   </div>
                   <span
-                    className={`text-sm font-medium leading-tight ${
+                    className={`text-xs sm:text-sm font-medium leading-tight truncate ${
                       nextMatch.homeTeam.id === TEAM_ID
                         ? "text-brfc-blue font-bold"
                         : "text-slate-700"
@@ -548,7 +621,7 @@ export default function Dashboard() {
                 </div>
                 <div className="flex items-center gap-3 flex-1 justify-end">
                   <span
-                    className={`text-sm font-medium text-right leading-tight ${
+                    className={`text-xs sm:text-sm font-medium text-right leading-tight truncate ${
                       nextMatch.awayTeam.id === TEAM_ID
                         ? "text-brfc-blue font-bold"
                         : "text-slate-700"
@@ -556,7 +629,7 @@ export default function Dashboard() {
                   >
                     {nextMatch.awayTeam.name}
                   </span>
-                  <div className="w-10 h-10 bg-slate-50 rounded-xl p-1.5 flex-shrink-0">
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 bg-slate-50 rounded-lg sm:rounded-xl p-1 sm:p-1.5 flex-shrink-0">
                     <img
                       src={nextMatch.awayTeam.logo}
                       alt={nextMatch.awayTeam.name}
@@ -612,7 +685,7 @@ export default function Dashboard() {
       <footer className="max-w-5xl mx-auto px-4 sm:px-6 py-8 text-center">
         <p className="text-xs text-muted">
           <span className="font-semibold text-brfc-gold">DashboardFC</span>{" "}
-          <span className="text-subtle">v1.1</span>
+          <span className="text-subtle">v1.2</span>
           <span className="mx-2 text-subtle">&middot;</span>
           Data from{" "}
           <a

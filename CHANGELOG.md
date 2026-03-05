@@ -4,6 +4,23 @@ All notable changes to DashboardFC will be documented here. Copy each new entry 
 
 ---
 
+## v1.2 — 5 March 2026
+
+**Match stats and mobile polish!**
+
+### New
+- Match stats bars in Last Match card: possession, shots on target, total shots, corners, fouls — shown as visual comparison bars between home and away teams
+- MatchStats domain type and adapter (provider-agnostic)
+
+### Improved
+- Header scales down cleanly on mobile (smaller badge, tighter text)
+- Team logos in match cards smaller on mobile
+- Team names truncate instead of wrapping on narrow screens
+- Score text responsive sizing
+- Overall tighter spacing on small screens
+
+---
+
 ## v1.1 — 5 March 2026
 
 **Live current season data!** Upgraded to API-Football Pro and switched to 2025/26 League Two.

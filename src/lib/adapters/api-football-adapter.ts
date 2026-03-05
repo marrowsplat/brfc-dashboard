@@ -13,6 +13,7 @@ import type {
   StandingsResponse,
   Fixture,
   FixtureEvent,
+  MatchStats,
 } from "@/lib/domain-types";
 
 // ─── Standings ─────────────────────────────────────────────
@@ -107,6 +108,62 @@ function transformFixture(f: any): Fixture {
     awayGoals: f.goals.away,
     halftimeHome: f.score.halftime.home,
     halftimeAway: f.score.halftime.away,
+  };
+}
+
+// ─── Match Stats ──────────────────────────────────────────
+
+/**
+ * Transform raw API-Football statistics into domain MatchStats.
+ *
+ * Input shape (from API-Football):
+ *   [ { team: {...}, statistics: [ { type: "Ball Possession", value: "52%" }, ... ] },
+ *     { team: {...}, statistics: [ ... ] } ]
+ *
+ * Index 0 = home team, Index 1 = away team
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function transformMatchStats(rawStats: any[]): MatchStats | null {
+  if (!Array.isArray(rawStats) || rawStats.length < 2) return null;
+
+  const home = rawStats[0]?.statistics;
+  const away = rawStats[1]?.statistics;
+  if (!home || !away) return null;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function findStat(stats: any[], type: string): any {
+    return stats.find((s: { type: string }) => s.type === type)?.value ?? null;
+  }
+
+  return {
+    possession: {
+      home: findStat(home, "Ball Possession"),
+      away: findStat(away, "Ball Possession"),
+    },
+    shotsOnGoal: {
+      home: findStat(home, "Shots on Goal"),
+      away: findStat(away, "Shots on Goal"),
+    },
+    totalShots: {
+      home: findStat(home, "Total Shots"),
+      away: findStat(away, "Total Shots"),
+    },
+    cornerKicks: {
+      home: findStat(home, "Corner Kicks"),
+      away: findStat(away, "Corner Kicks"),
+    },
+    fouls: {
+      home: findStat(home, "Fouls"),
+      away: findStat(away, "Fouls"),
+    },
+    yellowCards: {
+      home: findStat(home, "Yellow Cards"),
+      away: findStat(away, "Yellow Cards"),
+    },
+    redCards: {
+      home: findStat(home, "Red Cards"),
+      away: findStat(away, "Red Cards"),
+    },
   };
 }
 
