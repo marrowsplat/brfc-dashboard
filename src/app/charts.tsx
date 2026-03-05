@@ -173,12 +173,18 @@ function PointsTooltip({
   if (!active || !payload?.length) return null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const data = (payload[0] as any)?.payload;
+  const hasMatch = data?.opponent && data.opponent !== "";
   return (
     <div className="bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-md text-xs">
       <p className="font-semibold text-slate-800 mb-1">
-        Rd {label} {data?.venue === "H" ? "vs" : "@"} {data?.opponent}
+        Match {label}
+        {hasMatch && (
+          <> {data.venue === "H" ? "vs" : "@"} {data.opponent}</>
+        )}
       </p>
-      {payload.map((p: TooltipPayloadItem, i: number) => (
+      {payload
+        .filter((p: TooltipPayloadItem) => p.value !== null && p.value !== undefined)
+        .map((p: TooltipPayloadItem, i: number) => (
         <p key={i} style={{ color: p.color }}>
           {p.name}: {p.value}
         </p>
@@ -245,9 +251,51 @@ function ChartInfo({
 
 // ─── Chart components ──────────────────────────────────────
 
-export function PointsChart({ fixtures }: { fixtures: Fixture[] }) {
+export function PointsChart({
+  fixtures,
+  historicalFixtures,
+}: {
+  fixtures: Fixture[];
+  historicalFixtures?: Fixture[];
+}) {
   const data = buildSeasonData(fixtures);
   if (data.length === 0) return null;
+
+  // Build historical comparison data (last season)
+  const histData = historicalFixtures ? buildSeasonData(historicalFixtures) : [];
+
+  // Merge historical points into main data by matchNum
+  const mergedData = data.map((d) => {
+    const hist = histData.find((h) => h.matchNum === d.matchNum);
+    return {
+      ...d,
+      lastSeason: hist?.points ?? null,
+    };
+  });
+
+  // If historical season is longer, add those extra data points
+  const extraHist = histData
+    .filter((h) => h.matchNum > data.length)
+    .map((h) => ({
+      round: h.round,
+      matchNum: h.matchNum,
+      points: null as number | null,
+      promoAutoPace: h.promoAutoPace,
+      playoffPace: h.playoffPace,
+      relegationPace: h.relegationPace,
+      lastSeason: h.points,
+      scored: 0,
+      conceded: 0,
+      goalsFor: 0,
+      goalsAgainst: 0,
+      opponent: "",
+      venue: "",
+      result: "-",
+    }));
+
+  const chartData = [...mergedData, ...extraHist];
+
+  const hasHistorical = histData.length > 0;
 
   return (
     <div>
@@ -256,6 +304,12 @@ export function PointsChart({ fixtures }: { fixtures: Fixture[] }) {
           <strong className="text-slate-700">Solid blue line</strong> — Bristol
           Rovers&apos; actual cumulative points (3 for a win, 1 for a draw).
         </p>
+        {hasHistorical && (
+          <p className="mb-1">
+            <strong className="text-slate-700">Dotted grey line</strong> — last
+            season&apos;s (2024/25) points trajectory for comparison.
+          </p>
+        )}
         <p className="mb-1">
           <strong className="text-slate-700">Dashed pace lines</strong> — show
           where a team &quot;should&quot; be at each match to hit a target total
@@ -281,10 +335,10 @@ export function PointsChart({ fixtures }: { fixtures: Fixture[] }) {
       </ChartInfo>
       <div className="w-full h-64 sm:h-80">
       <ResponsiveContainer width="100%" height="100%">
-        <LineChart data={data} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+        <LineChart data={chartData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" />
           <XAxis
-            dataKey="round"
+            dataKey="matchNum"
             tick={{ fontSize: 10, fill: "#94A3B8" }}
             interval="preserveStartEnd"
           />
@@ -302,8 +356,22 @@ export function PointsChart({ fixtures }: { fixtures: Fixture[] }) {
             strokeWidth={2.5}
             dot={false}
             activeDot={{ r: 4, fill: "#0047AB" }}
-            name="Bristol Rovers"
+            name="2025/26"
+            connectNulls={false}
           />
+          {hasHistorical && (
+            <Line
+              type="monotone"
+              dataKey="lastSeason"
+              stroke="#94A3B8"
+              strokeWidth={1.5}
+              strokeDasharray="3 3"
+              dot={false}
+              activeDot={{ r: 3, fill: "#94A3B8" }}
+              name="2024/25"
+              connectNulls={false}
+            />
+          )}
           <Line
             type="monotone"
             dataKey="promoAutoPace"

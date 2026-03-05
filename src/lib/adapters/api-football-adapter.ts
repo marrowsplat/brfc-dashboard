@@ -14,6 +14,7 @@ import type {
   Fixture,
   FixtureEvent,
   MatchStats,
+  PlayerStats,
 } from "@/lib/domain-types";
 
 // ─── Standings ─────────────────────────────────────────────
@@ -165,6 +166,43 @@ export function transformMatchStats(rawStats: any[]): MatchStats | null {
       away: findStat(away, "Red Cards"),
     },
   };
+}
+
+// ─── Player Stats ─────────────────────────────────────────
+
+/**
+ * Transform raw API-Football player data into domain PlayerStats.
+ *
+ * Input shape (from API-Football /players):
+ *   { player: { id, name, photo }, statistics: [ { games: { position, appearences, rating, minutes }, goals: { total, assists }, cards: { yellow, red } } ] }
+ *
+ * Each entry has a statistics array — we take the first (league) entry.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function transformPlayerStats(rawPlayers: any[]): PlayerStats[] {
+  if (!Array.isArray(rawPlayers)) return [];
+
+  return rawPlayers
+    .map((entry) => {
+      const player = entry.player;
+      const stats = entry.statistics?.[0];
+      if (!player || !stats) return null;
+
+      return {
+        id: player.id,
+        name: player.name,
+        photo: player.photo,
+        position: stats.games?.position || "Unknown",
+        appearances: stats.games?.appearences ?? 0,
+        goals: stats.goals?.total ?? 0,
+        assists: stats.goals?.assists ?? 0,
+        yellowCards: stats.cards?.yellow ?? 0,
+        redCards: stats.cards?.red ?? 0,
+        rating: stats.games?.rating ?? null,
+        minutes: stats.games?.minutes ?? 0,
+      };
+    })
+    .filter((p): p is PlayerStats => p !== null);
 }
 
 // ─── Match Events ──────────────────────────────────────────

@@ -213,3 +213,47 @@ export async function getFixtureEvents(fixtureId: string) {
 
   return [];
 }
+
+/**
+ * Player stats for the team this season — cached 6 hours.
+ * Uses /players endpoint with team + season params, paginated.
+ */
+export async function getPlayerStats() {
+  // Fetch page 1 first to get paging info
+  const page1 = (await fetchWithCache(
+    "/players",
+    { team: TEAM_ID, season: SEASON, page: "1" },
+    HOURS(6)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  )) as { response: any[]; paging: { current: number; total: number } };
+
+  let allPlayers = page1.response || [];
+
+  // Fetch remaining pages if any
+  const totalPages = page1.paging?.total || 1;
+  for (let p = 2; p <= totalPages; p++) {
+    const page = (await fetchWithCache(
+      "/players",
+      { team: TEAM_ID, season: SEASON, page: String(p) },
+      HOURS(6)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    )) as { response: any[] };
+    allPlayers = allPlayers.concat(page.response || []);
+  }
+
+  return allPlayers;
+}
+
+/**
+ * Season fixtures for a specific season (for historical comparison).
+ * Cached indefinitely (past seasons don't change).
+ */
+export async function getHistoricalSeasonFixtures(season: string): Promise<FixtureResponse> {
+  const data = (await fetchWithCache(
+    "/fixtures",
+    { team: TEAM_ID, league: LEAGUE_ID, season },
+    HOURS(24 * 365) // past season — cache forever
+  )) as { response: FixtureResponse };
+
+  return data.response || [];
+}

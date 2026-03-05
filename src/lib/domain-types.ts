@@ -69,6 +69,22 @@ export interface MatchStats {
   redCards: { home: number | null; away: number | null };
 }
 
+// ─── Player Stats ─────────────────────────────────────────
+
+export interface PlayerStats {
+  id: number;
+  name: string;
+  photo: string;
+  position: string;
+  appearances: number;
+  goals: number;
+  assists: number;
+  yellowCards: number;
+  redCards: number;
+  rating: string | null;
+  minutes: number;
+}
+
 // ─── Match Events ──────────────────────────────────────────
 
 export interface FixtureEvent {

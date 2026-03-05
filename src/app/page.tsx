@@ -7,6 +7,7 @@ import type {
   Fixture,
   FixtureEvent,
   MatchStats,
+  PlayerStats,
 } from "@/lib/domain-types";
 import { PointsChart, GoalsChart, HomeAwayChart } from "./charts";
 
@@ -357,6 +358,121 @@ function LeagueTable({
   );
 }
 
+// ─── Player Stats Table ────────────────────────────────────
+
+type SortField = "goals" | "assists" | "appearances" | "yellowCards" | "rating";
+
+function PlayerStatsTable({ players }: { players: PlayerStats[] }) {
+  const [sortBy, setSortBy] = useState<SortField>("goals");
+  const [showAll, setShowAll] = useState(false);
+
+  const sorted = [...players].sort((a, b) => {
+    if (sortBy === "rating") {
+      return (parseFloat(b.rating ?? "0") || 0) - (parseFloat(a.rating ?? "0") || 0);
+    }
+    return (b[sortBy] as number) - (a[sortBy] as number);
+  });
+
+  const display = showAll ? sorted : sorted.slice(0, 10);
+
+  const sortButtons: { field: SortField; label: string }[] = [
+    { field: "goals", label: "Goals" },
+    { field: "assists", label: "Assists" },
+    { field: "appearances", label: "Apps" },
+    { field: "yellowCards", label: "Cards" },
+    { field: "rating", label: "Rating" },
+  ];
+
+  return (
+    <div>
+      <div className="flex flex-wrap gap-1.5 mb-4">
+        {sortButtons.map((btn) => (
+          <button
+            key={btn.field}
+            onClick={() => setSortBy(btn.field)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+              sortBy === btn.field
+                ? "bg-brfc-blue text-white"
+                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            {btn.label}
+          </button>
+        ))}
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-[10px] uppercase tracking-wider text-muted border-b border-slate-100">
+              <th className="text-left py-2 font-semibold">Player</th>
+              <th className="text-center py-2 font-semibold">Pos</th>
+              <th className="text-center py-2 font-semibold">Apps</th>
+              <th className="text-center py-2 font-semibold">⚽</th>
+              <th className="text-center py-2 font-semibold">🅰️</th>
+              <th className="text-center py-2 font-semibold">🟨</th>
+              <th className="text-center py-2 font-semibold">🟥</th>
+              <th className="text-center py-2 pr-2 font-semibold">Rtg</th>
+            </tr>
+          </thead>
+          <tbody>
+            {display.map((p, i) => (
+              <tr
+                key={p.id}
+                className="border-b border-slate-50 hover:bg-slate-50 transition-colors"
+              >
+                <td className="py-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted w-4 text-right">{i + 1}</span>
+                    <img
+                      src={p.photo}
+                      alt={p.name}
+                      className="w-6 h-6 rounded-full object-cover bg-slate-100"
+                    />
+                    <span className="font-medium text-slate-700 truncate max-w-[100px] sm:max-w-[180px]">
+                      {p.name}
+                    </span>
+                  </div>
+                </td>
+                <td className="text-center py-2">
+                  <span className="text-[10px] text-muted font-medium">
+                    {p.position.slice(0, 3).toUpperCase()}
+                  </span>
+                </td>
+                <td className="text-center py-2 text-muted">{p.appearances}</td>
+                <td className={`text-center py-2 font-bold ${p.goals > 0 ? "text-win" : "text-muted"}`}>
+                  {p.goals}
+                </td>
+                <td className={`text-center py-2 font-semibold ${p.assists > 0 ? "text-blue-600" : "text-muted"}`}>
+                  {p.assists}
+                </td>
+                <td className={`text-center py-2 ${p.yellowCards > 0 ? "text-amber-500 font-semibold" : "text-muted"}`}>
+                  {p.yellowCards}
+                </td>
+                <td className={`text-center py-2 ${p.redCards > 0 ? "text-loss font-bold" : "text-muted"}`}>
+                  {p.redCards}
+                </td>
+                <td className="text-center py-2 pr-2 text-muted">
+                  {p.rating ? parseFloat(p.rating).toFixed(1) : "-"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {sorted.length > 10 && (
+        <div className="mt-3 pt-3 border-t border-slate-100 text-center">
+          <button
+            onClick={() => setShowAll(!showAll)}
+            className="text-xs text-brfc-blue hover:text-brfc-blue-dark font-medium transition-colors"
+          >
+            {showAll ? "Show top 10" : `View all ${sorted.length} players`}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Dashboard ─────────────────────────────────────────────
 
 export default function Dashboard() {
@@ -366,6 +482,8 @@ export default function Dashboard() {
   const [lastMatchEvents, setLastMatchEvents] = useState<FixtureEvent[]>([]);
   const [lastMatchStats, setLastMatchStats] = useState<MatchStats | null>(null);
   const [seasonFixtures, setSeasonFixtures] = useState<Fixture[]>([]);
+  const [playerStats, setPlayerStats] = useState<PlayerStats[]>([]);
+  const [historicalFixtures, setHistoricalFixtures] = useState<Fixture[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -374,22 +492,29 @@ export default function Dashboard() {
     async function fetchData() {
       try {
         setLoading(true);
-        const [standingsRes, lastRes, nextRes, seasonRes] = await Promise.all([
-          fetch("/api/standings"),
-          fetch("/api/fixtures?type=last&count=10"),
-          fetch("/api/fixtures?type=next&count=3"),
-          fetch("/api/fixtures?type=season"),
-        ]);
+        const [standingsRes, lastRes, nextRes, seasonRes, playersRes, histRes] =
+          await Promise.all([
+            fetch("/api/standings"),
+            fetch("/api/fixtures?type=last&count=10"),
+            fetch("/api/fixtures?type=next&count=3"),
+            fetch("/api/fixtures?type=season"),
+            fetch("/api/players"),
+            fetch("/api/historical-fixtures?season=2024"),
+          ]);
 
         const standingsData: StandingsResponse = await standingsRes.json();
         const lastData: Fixture[] = await lastRes.json();
         const nextData: Fixture[] = await nextRes.json();
         const seasonData: Fixture[] = await seasonRes.json();
+        const playersData: PlayerStats[] = await playersRes.json();
+        const histData: Fixture[] = await histRes.json();
 
         setStandings(standingsData);
         setLastFixtures(lastData);
         setNextFixtures(nextData);
         setSeasonFixtures(seasonData);
+        setPlayerStats(Array.isArray(playersData) ? playersData : []);
+        setHistoricalFixtures(Array.isArray(histData) ? histData : []);
         setLastUpdated(new Date());
 
         // Fetch events for the most recent completed fixture
@@ -892,11 +1017,21 @@ export default function Dashboard() {
           </Card>
         )}
 
-        {/* Row 5: Season Charts */}
+        {/* Row 5: Player Stats */}
+        {!loading && playerStats.length > 0 && (
+          <Card title="Squad Stats" accent>
+            <PlayerStatsTable players={playerStats} />
+          </Card>
+        )}
+
+        {/* Row 6: Season Charts */}
         {!loading && seasonFixtures.length > 0 && (
           <>
             <Card title="Points Accumulation" accent>
-              <PointsChart fixtures={seasonFixtures} />
+              <PointsChart
+                fixtures={seasonFixtures}
+                historicalFixtures={historicalFixtures}
+              />
             </Card>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
