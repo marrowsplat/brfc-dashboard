@@ -67,6 +67,12 @@ function ResultBadge({
   );
 }
 
+function ordinal(n: number): string {
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
 function PositionBadge({ rank }: { rank: number }) {
   let color = "text-slate-600";
   let bg = "bg-slate-100";
@@ -84,7 +90,7 @@ function PositionBadge({ rank }: { rank: number }) {
     <div
       className={`stat-animate inline-flex items-center justify-center w-20 h-20 rounded-2xl ${bg}`}
     >
-      <span className={`text-4xl font-extrabold ${color}`}>{rank}</span>
+      <span className={`text-3xl font-extrabold ${color}`}>{ordinal(rank)}</span>
     </div>
   );
 }
@@ -436,25 +442,59 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-              <ResultBadge result={resultFor(lastMatch, TEAM_ID)} />
-              {/* Goal events */}
-              {lastMatchEvents.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-card-border space-y-1.5">
-                  {lastMatchEvents
-                    .filter((e) => e.type === "Goal")
-                    .map((e, i) => (
-                      <p key={i} className="text-xs text-slate-600">
-                        <span className="font-semibold">
-                          {e.player.name}
-                        </span>{" "}
-                        <span className="text-muted">
-                          {e.time.elapsed}&apos;
-                        </span>
-                        {e.detail !== "Normal Goal" && (
-                          <span className="text-muted ml-1">({e.detail})</span>
-                        )}
-                      </p>
-                    ))}
+              {/* Goal events split by team */}
+              {lastMatchEvents.filter((e) => e.type === "Goal").length > 0 && (
+                <div className="mt-4 pt-4 border-t border-card-border">
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Home team goals */}
+                    <div className="space-y-1.5">
+                      {lastMatchEvents
+                        .filter(
+                          (e) =>
+                            e.type === "Goal" &&
+                            e.team.id === lastMatch.teams.home.id
+                        )
+                        .map((e, i) => (
+                          <p key={i} className="text-xs text-slate-600">
+                            <span className="font-semibold">
+                              {e.player.name}
+                            </span>{" "}
+                            <span className="text-muted">
+                              {e.time.elapsed}&apos;
+                            </span>
+                            {e.detail !== "Normal Goal" && (
+                              <span className="text-muted ml-1">
+                                ({e.detail})
+                              </span>
+                            )}
+                          </p>
+                        ))}
+                    </div>
+                    {/* Away team goals */}
+                    <div className="space-y-1.5 text-right">
+                      {lastMatchEvents
+                        .filter(
+                          (e) =>
+                            e.type === "Goal" &&
+                            e.team.id === lastMatch.teams.away.id
+                        )
+                        .map((e, i) => (
+                          <p key={i} className="text-xs text-slate-600">
+                            <span className="font-semibold">
+                              {e.player.name}
+                            </span>{" "}
+                            <span className="text-muted">
+                              {e.time.elapsed}&apos;
+                            </span>
+                            {e.detail !== "Normal Goal" && (
+                              <span className="text-muted ml-1">
+                                ({e.detail})
+                              </span>
+                            )}
+                          </p>
+                        ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </Card>
