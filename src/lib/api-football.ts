@@ -138,11 +138,24 @@ export async function getFixtureStats(fixtureId: string) {
 
 /** Match events (goals, cards, subs) — cached ~30 days */
 export async function getFixtureEvents(fixtureId: string) {
+  // Try the events endpoint first
   const data = (await fetchWithCache(
     "/fixtures/events",
     { fixture: fixtureId },
     HOURS(24 * 30)
   )) as { response: unknown[] };
 
-  return data.response || [];
+  if (data.response && data.response.length > 0) {
+    return data.response;
+  }
+
+  // Fallback: fetch the full fixture detail which includes events inline
+  const fixtureData = (await fetchWithCache(
+    "/fixtures",
+    { id: fixtureId },
+    HOURS(24 * 30)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  )) as { response: any[] };
+
+  return fixtureData.response?.[0]?.events || [];
 }
