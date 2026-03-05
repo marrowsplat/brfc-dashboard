@@ -8,6 +8,7 @@ import type {
   FixtureEvent,
   MatchStats,
 } from "@/lib/domain-types";
+import { PointsChart, GoalsChart, HomeAwayChart } from "./charts";
 
 // ─── Helpers ───────────────────────────────────────────────
 
@@ -213,6 +214,7 @@ export default function Dashboard() {
   const [nextFixtures, setNextFixtures] = useState<Fixture[]>([]);
   const [lastMatchEvents, setLastMatchEvents] = useState<FixtureEvent[]>([]);
   const [lastMatchStats, setLastMatchStats] = useState<MatchStats | null>(null);
+  const [seasonFixtures, setSeasonFixtures] = useState<Fixture[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -221,19 +223,22 @@ export default function Dashboard() {
     async function fetchData() {
       try {
         setLoading(true);
-        const [standingsRes, lastRes, nextRes] = await Promise.all([
+        const [standingsRes, lastRes, nextRes, seasonRes] = await Promise.all([
           fetch("/api/standings"),
           fetch("/api/fixtures?type=last&count=10"),
           fetch("/api/fixtures?type=next&count=3"),
+          fetch("/api/fixtures?type=season"),
         ]);
 
         const standingsData: StandingsResponse = await standingsRes.json();
         const lastData: Fixture[] = await lastRes.json();
         const nextData: Fixture[] = await nextRes.json();
+        const seasonData: Fixture[] = await seasonRes.json();
 
         setStandings(standingsData);
         setLastFixtures(lastData);
         setNextFixtures(nextData);
+        setSeasonFixtures(seasonData);
         setLastUpdated(new Date());
 
         // Fetch events for the most recent completed fixture
@@ -678,6 +683,34 @@ export default function Dashboard() {
               />
             </div>
           </Card>
+        )}
+
+        {/* Row 4: Season Charts */}
+        {!loading && seasonFixtures.length > 0 && (
+          <>
+            <Card title="Points Accumulation" accent>
+              <p className="text-xs text-muted mb-3">
+                Season progress vs promotion, playoff, and relegation pace
+              </p>
+              <PointsChart fixtures={seasonFixtures} />
+            </Card>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card title="Goals Trend" accent>
+                <p className="text-xs text-muted mb-3">
+                  Cumulative goals scored vs conceded
+                </p>
+                <GoalsChart fixtures={seasonFixtures} />
+              </Card>
+
+              <Card title="Home vs Away" accent>
+                <p className="text-xs text-muted mb-3">
+                  Performance comparison by venue
+                </p>
+                <HomeAwayChart fixtures={seasonFixtures} />
+              </Card>
+            </div>
+          </>
         )}
       </main>
 
