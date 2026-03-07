@@ -657,7 +657,27 @@ export default function Dashboard() {
     );
   }
 
-  const team: StandingEntry | null = standings?.team ?? null;
+  // Compute accurate form string from actual fixtures (last 5 to match API convention)
+  const computedForm = lastFixtures
+    .slice(-5)
+    .map((f) => resultFor(f, TEAM_ID) ?? "")
+    .join("");
+
+  // Override our team's form in the standings table so all components use accurate data
+  const correctedTable: StandingEntry[] = (standings?.table ?? []).map((entry) =>
+    entry.team.id === TEAM_ID ? { ...entry, form: computedForm } : entry
+  );
+  const correctedStandings = standings
+    ? {
+        ...standings,
+        table: correctedTable,
+        team: standings.team
+          ? { ...standings.team, form: computedForm }
+          : null,
+      }
+    : null;
+
+  const team: StandingEntry | null = correctedStandings?.team ?? null;
   const lastMatch =
     lastFixtures.length > 0 ? lastFixtures[lastFixtures.length - 1] : null;
   const nextMatch = nextFixtures.length > 0 ? nextFixtures[0] : null;
@@ -720,7 +740,7 @@ export default function Dashboard() {
                 Bristol Rovers FC
               </h1>
               <p className="text-blue-200 text-xs sm:text-sm mt-0.5">
-                {standings?.leagueName || "League Two"} — 2025/26 Season
+                {correctedStandings?.leagueName || "League Two"} — 2025/26 Season
               </p>
             </div>
           </div>
@@ -887,7 +907,7 @@ export default function Dashboard() {
                   <TeamNameWithForm
                     teamId={lastMatch.homeTeam.id}
                     teamName={lastMatch.homeTeam.name}
-                    table={standings?.table ?? []}
+                    table={correctedStandings?.table ?? []}
                   />
                 </div>
                 <div className="text-center px-4 flex-shrink-0">
@@ -904,7 +924,7 @@ export default function Dashboard() {
                   <TeamNameWithForm
                     teamId={lastMatch.awayTeam.id}
                     teamName={lastMatch.awayTeam.name}
-                    table={standings?.table ?? []}
+                    table={correctedStandings?.table ?? []}
                     align="right"
                   />
                   <div className="w-8 h-8 sm:w-10 sm:h-10 bg-slate-50 rounded-lg sm:rounded-xl p-1 sm:p-1.5 flex-shrink-0">
@@ -1030,7 +1050,7 @@ export default function Dashboard() {
                   <TeamNameWithForm
                     teamId={nextMatch.homeTeam.id}
                     teamName={nextMatch.homeTeam.name}
-                    table={standings?.table ?? []}
+                    table={correctedStandings?.table ?? []}
                   />
                 </div>
                 <div className="text-center px-4 flex-shrink-0">
@@ -1040,7 +1060,7 @@ export default function Dashboard() {
                   <TeamNameWithForm
                     teamId={nextMatch.awayTeam.id}
                     teamName={nextMatch.awayTeam.name}
-                    table={standings?.table ?? []}
+                    table={correctedStandings?.table ?? []}
                     align="right"
                   />
                   <div className="w-8 h-8 sm:w-10 sm:h-10 bg-slate-50 rounded-lg sm:rounded-xl p-1 sm:p-1.5 flex-shrink-0">
@@ -1095,10 +1115,10 @@ export default function Dashboard() {
         )}
 
         {/* Row 4: League Table */}
-        {!loading && standings && standings.table.length > 0 && (
+        {!loading && correctedStandings && correctedStandings.table.length > 0 && (
           <Card title="League Table" accent>
             <LeagueTable
-              table={standings.table}
+              table={correctedStandings.table}
               teamId={TEAM_ID}
               nextOpponentId={
                 nextMatch
