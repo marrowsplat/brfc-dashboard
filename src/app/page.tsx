@@ -231,27 +231,43 @@ function FormDots({ form, size = "sm" }: { form: string; size?: "sm" | "xs" }) {
   );
 }
 
-// ─── Opponent Snippet ──────────────────────────────────────
+// ─── Team Name with Form ───────────────────────────────────
 
-function OpponentSnippet({
+function TeamNameWithForm({
   teamId,
+  teamName,
   table,
+  align = "left",
 }: {
   teamId: number;
+  teamName: string;
   table: StandingEntry[];
+  align?: "left" | "right";
 }) {
+  const isOurTeam = teamId === TEAM_ID;
   const entry = table.find((e) => e.team.id === teamId);
-  if (!entry) return null;
 
   return (
-    <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-[10px] font-bold text-muted bg-slate-100 rounded px-1.5 py-0.5">
-        {ordinal(entry.rank)}
+    <div className={`min-w-0 ${align === "right" ? "text-right" : ""}`}>
+      <span
+        className={`block text-xs sm:text-sm font-medium leading-tight truncate ${
+          isOurTeam ? "text-brfc-blue font-bold" : "text-slate-700"
+        }`}
+      >
+        {teamName}
       </span>
-      <FormDots form={entry.form} size="xs" />
-      <span className="text-[10px] text-muted">
-        P{entry.played} W{entry.wins} D{entry.draws} L{entry.losses}
-      </span>
+      {entry && (
+        <div
+          className={`flex items-center gap-1.5 mt-1 ${
+            align === "right" ? "justify-end" : ""
+          }`}
+        >
+          <span className="text-[10px] font-bold text-muted bg-slate-100 rounded px-1 py-0.5 leading-none">
+            {ordinal(entry.rank)}
+          </span>
+          <FormDots form={entry.form} size="xs" />
+        </div>
+      )}
     </div>
   );
 }
@@ -858,7 +874,7 @@ export default function Dashboard() {
                 {lastMatch.leagueRound}
               </div>
               <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3 flex-1">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="w-8 h-8 sm:w-10 sm:h-10 bg-slate-50 rounded-lg sm:rounded-xl p-1 sm:p-1.5 flex-shrink-0">
                     <img
                       src={lastMatch.homeTeam.logo}
@@ -866,17 +882,13 @@ export default function Dashboard() {
                       className="w-full h-full object-contain"
                     />
                   </div>
-                  <span
-                    className={`text-xs sm:text-sm font-medium leading-tight truncate ${
-                      lastMatch.homeTeam.id === TEAM_ID
-                        ? "text-brfc-blue font-bold"
-                        : "text-slate-700"
-                    }`}
-                  >
-                    {lastMatch.homeTeam.name}
-                  </span>
+                  <TeamNameWithForm
+                    teamId={lastMatch.homeTeam.id}
+                    teamName={lastMatch.homeTeam.name}
+                    table={standings?.table ?? []}
+                  />
                 </div>
-                <div className="text-center px-4">
+                <div className="text-center px-4 flex-shrink-0">
                   <span className="text-2xl sm:text-3xl font-extrabold tracking-tight">
                     {lastMatch.homeGoals} – {lastMatch.awayGoals}
                   </span>
@@ -886,16 +898,13 @@ export default function Dashboard() {
                     </p>
                   )}
                 </div>
-                <div className="flex items-center gap-3 flex-1 justify-end">
-                  <span
-                    className={`text-xs sm:text-sm font-medium text-right leading-tight truncate ${
-                      lastMatch.awayTeam.id === TEAM_ID
-                        ? "text-brfc-blue font-bold"
-                        : "text-slate-700"
-                    }`}
-                  >
-                    {lastMatch.awayTeam.name}
-                  </span>
+                <div className="flex items-center gap-3 flex-1 justify-end min-w-0">
+                  <TeamNameWithForm
+                    teamId={lastMatch.awayTeam.id}
+                    teamName={lastMatch.awayTeam.name}
+                    table={standings?.table ?? []}
+                    align="right"
+                  />
                   <div className="w-8 h-8 sm:w-10 sm:h-10 bg-slate-50 rounded-lg sm:rounded-xl p-1 sm:p-1.5 flex-shrink-0">
                     <img
                       src={lastMatch.awayTeam.logo}
@@ -905,22 +914,6 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-              {/* Opponent context */}
-              {standings && standings.table.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-card-border">
-                  <p className="text-[10px] text-muted uppercase tracking-wider font-semibold mb-1.5">
-                    Opponent
-                  </p>
-                  <OpponentSnippet
-                    teamId={
-                      lastMatch.homeTeam.id === TEAM_ID
-                        ? lastMatch.awayTeam.id
-                        : lastMatch.homeTeam.id
-                    }
-                    table={standings.table}
-                  />
-                </div>
-              )}
               {/* Goal events split by team */}
               {lastMatchEvents.filter((e) => e.type === "Goal").length > 0 && (
                 <div className="mt-4 pt-4 border-t border-card-border">
@@ -1024,7 +1017,7 @@ export default function Dashboard() {
                 {nextMatch.leagueRound}
               </div>
               <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3 flex-1">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
                   <div className="w-8 h-8 sm:w-10 sm:h-10 bg-slate-50 rounded-lg sm:rounded-xl p-1 sm:p-1.5 flex-shrink-0">
                     <img
                       src={nextMatch.homeTeam.logo}
@@ -1032,29 +1025,22 @@ export default function Dashboard() {
                       className="w-full h-full object-contain"
                     />
                   </div>
-                  <span
-                    className={`text-xs sm:text-sm font-medium leading-tight truncate ${
-                      nextMatch.homeTeam.id === TEAM_ID
-                        ? "text-brfc-blue font-bold"
-                        : "text-slate-700"
-                    }`}
-                  >
-                    {nextMatch.homeTeam.name}
-                  </span>
+                  <TeamNameWithForm
+                    teamId={nextMatch.homeTeam.id}
+                    teamName={nextMatch.homeTeam.name}
+                    table={standings?.table ?? []}
+                  />
                 </div>
-                <div className="text-center px-4">
+                <div className="text-center px-4 flex-shrink-0">
                   <span className="text-2xl font-bold text-muted">vs</span>
                 </div>
-                <div className="flex items-center gap-3 flex-1 justify-end">
-                  <span
-                    className={`text-xs sm:text-sm font-medium text-right leading-tight truncate ${
-                      nextMatch.awayTeam.id === TEAM_ID
-                        ? "text-brfc-blue font-bold"
-                        : "text-slate-700"
-                    }`}
-                  >
-                    {nextMatch.awayTeam.name}
-                  </span>
+                <div className="flex items-center gap-3 flex-1 justify-end min-w-0">
+                  <TeamNameWithForm
+                    teamId={nextMatch.awayTeam.id}
+                    teamName={nextMatch.awayTeam.name}
+                    table={standings?.table ?? []}
+                    align="right"
+                  />
                   <div className="w-8 h-8 sm:w-10 sm:h-10 bg-slate-50 rounded-lg sm:rounded-xl p-1 sm:p-1.5 flex-shrink-0">
                     <img
                       src={nextMatch.awayTeam.logo}
@@ -1072,22 +1058,6 @@ export default function Dashboard() {
                   {nextMatch.venueName}
                 </span>
               </div>
-              {/* Opponent context */}
-              {standings && standings.table.length > 0 && (
-                <div className="mt-4 pt-3 border-t border-card-border">
-                  <p className="text-[10px] text-muted uppercase tracking-wider font-semibold mb-1.5">
-                    Opponent
-                  </p>
-                  <OpponentSnippet
-                    teamId={
-                      nextMatch.homeTeam.id === TEAM_ID
-                        ? nextMatch.awayTeam.id
-                        : nextMatch.homeTeam.id
-                    }
-                    table={standings.table}
-                  />
-                </div>
-              )}
             </Card>
           ) : (
             <Card title="Next Match">
