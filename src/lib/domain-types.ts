@@ -31,6 +31,7 @@ export interface StandingEntry {
   losses: number;
   goalsFor: number;
   goalsAgainst: number;
+  form: string;
   homeRecord: { w: number; d: number; l: number };
   awayRecord: { w: number; d: number; l: number };
 }

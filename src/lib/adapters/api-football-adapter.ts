@@ -60,6 +60,7 @@ function transformStandingEntry(entry: any): StandingEntry {
     losses: entry.all.lose,
     goalsFor: entry.all.goals.for,
     goalsAgainst: entry.all.goals.against,
+    form: entry.form || "",
     homeRecord: {
       w: entry.home.win,
       d: entry.home.draw,

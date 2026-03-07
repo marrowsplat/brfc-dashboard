@@ -207,21 +207,72 @@ function StatBar({
   );
 }
 
+// ─── Form Dots ─────────────────────────────────────────────
+
+function FormDots({ form, size = "sm" }: { form: string; size?: "sm" | "xs" }) {
+  if (!form) return null;
+  const dotSize = size === "xs" ? "w-2 h-2" : "w-2.5 h-2.5";
+  return (
+    <div className="flex gap-0.5">
+      {form.split("").map((ch, i) => {
+        let color = "bg-slate-300";
+        if (ch === "W") color = "bg-win";
+        else if (ch === "L") color = "bg-loss";
+        else if (ch === "D") color = "bg-draw";
+        return (
+          <span
+            key={i}
+            className={`${dotSize} rounded-full ${color}`}
+            title={ch === "W" ? "Win" : ch === "D" ? "Draw" : ch === "L" ? "Loss" : ch}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Opponent Snippet ──────────────────────────────────────
+
+function OpponentSnippet({
+  teamId,
+  table,
+}: {
+  teamId: number;
+  table: StandingEntry[];
+}) {
+  const entry = table.find((e) => e.team.id === teamId);
+  if (!entry) return null;
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-[10px] font-bold text-muted bg-slate-100 rounded px-1.5 py-0.5">
+        {ordinal(entry.rank)}
+      </span>
+      <FormDots form={entry.form} size="xs" />
+      <span className="text-[10px] text-muted">
+        P{entry.played} W{entry.wins} D{entry.draws} L{entry.losses}
+      </span>
+    </div>
+  );
+}
+
 // ─── League Table ──────────────────────────────────────────
 
 function LeagueTable({
   table,
   teamId,
+  nextOpponentId,
 }: {
   table: StandingEntry[];
   teamId: number;
+  nextOpponentId?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
 
   const teamIdx = table.findIndex((e) => e.team.id === teamId);
 
-  // Compact view: show 2 above and 2 below Rovers (min 5 rows)
-  const windowSize = 2;
+  // Compact view: show 3 above and 3 below Rovers (7 rows)
+  const windowSize = 3;
   const startIdx = Math.max(0, teamIdx - windowSize);
   const endIdx = Math.min(table.length, teamIdx + windowSize + 1);
   const displayTable = expanded ? table : table.slice(startIdx, endIdx);
@@ -255,27 +306,33 @@ function LeagueTable({
               <th className="text-center py-2 font-semibold">W</th>
               <th className="text-center py-2 font-semibold">D</th>
               <th className="text-center py-2 font-semibold">L</th>
+              <th className="text-center py-2 font-semibold hidden sm:table-cell">GF</th>
+              <th className="text-center py-2 font-semibold hidden sm:table-cell">GA</th>
               <th className="text-center py-2 font-semibold">GD</th>
-              <th className="text-center py-2 pr-2 font-semibold">Pts</th>
+              <th className="text-center py-2 font-semibold">Pts</th>
+              <th className="text-center py-2 pr-2 font-semibold hidden sm:table-cell">Form</th>
             </tr>
           </thead>
           <tbody>
             {displayTable.map((entry) => {
               const isRovers = entry.team.id === teamId;
+              const isNextOpponent = entry.team.id === nextOpponentId;
+              let rowBg = "hover:bg-slate-50";
+              if (isRovers) rowBg = "bg-brfc-blue/5 font-bold";
+              else if (isNextOpponent) rowBg = "bg-brfc-gold/5";
+
               return (
                 <tr
                   key={entry.rank}
-                  className={`border-b border-slate-50 transition-colors ${
-                    isRovers
-                      ? "bg-brfc-blue/5 font-bold"
-                      : "hover:bg-slate-50"
-                  }`}
+                  className={`border-b border-slate-50 transition-colors ${rowBg}`}
                 >
                   <td className="w-1 p-0">
                     <div
-                      className={`w-1 h-full min-h-[32px] rounded-r-full ${zoneIndicator(
-                        entry.rank
-                      )}`}
+                      className={`w-1 h-full min-h-[32px] rounded-r-full ${
+                        isNextOpponent
+                          ? "bg-brfc-gold"
+                          : zoneIndicator(entry.rank)
+                      }`}
                     />
                   </td>
                   <td className="py-2 pl-2 text-muted">{entry.rank}</td>
@@ -287,12 +344,21 @@ function LeagueTable({
                         className="w-4 h-4 object-contain"
                       />
                       <span
-                        className={`truncate max-w-[120px] sm:max-w-none ${
-                          isRovers ? "text-brfc-blue" : "text-slate-700"
+                        className={`truncate max-w-[100px] sm:max-w-none ${
+                          isRovers
+                            ? "text-brfc-blue"
+                            : isNextOpponent
+                            ? "text-brfc-gold font-semibold"
+                            : "text-slate-700"
                         }`}
                       >
                         {entry.team.name}
                       </span>
+                      {isNextOpponent && (
+                        <span className="text-[9px] text-brfc-gold font-bold uppercase tracking-wider">
+                          Next
+                        </span>
+                      )}
                     </div>
                   </td>
                   <td className="py-2 text-center text-muted">
@@ -304,6 +370,12 @@ function LeagueTable({
                   </td>
                   <td className="py-2 text-center text-muted">
                     {entry.losses}
+                  </td>
+                  <td className="py-2 text-center text-muted hidden sm:table-cell">
+                    {entry.goalsFor}
+                  </td>
+                  <td className="py-2 text-center text-muted hidden sm:table-cell">
+                    {entry.goalsAgainst}
                   </td>
                   <td
                     className={`py-2 text-center font-semibold ${
@@ -318,11 +390,14 @@ function LeagueTable({
                     {entry.goalsDiff}
                   </td>
                   <td
-                    className={`py-2 text-center pr-2 font-bold ${
+                    className={`py-2 text-center font-bold ${
                       isRovers ? "text-brfc-blue" : "text-slate-800"
                     }`}
                   >
                     {entry.points}
+                  </td>
+                  <td className="py-2 text-center pr-2 hidden sm:table-cell">
+                    <FormDots form={entry.form} size="xs" />
                   </td>
                 </tr>
               );
@@ -346,6 +421,11 @@ function LeagueTable({
           <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-red-500" /> Relegation
           </span>
+          {nextOpponentId && (
+            <span className="flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-brfc-gold" /> Next opponent
+            </span>
+          )}
         </div>
         <button
           onClick={() => setExpanded(!expanded)}
@@ -825,6 +905,22 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
+              {/* Opponent context */}
+              {standings && standings.table.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-card-border">
+                  <p className="text-[10px] text-muted uppercase tracking-wider font-semibold mb-1.5">
+                    Opponent
+                  </p>
+                  <OpponentSnippet
+                    teamId={
+                      lastMatch.homeTeam.id === TEAM_ID
+                        ? lastMatch.awayTeam.id
+                        : lastMatch.homeTeam.id
+                    }
+                    table={standings.table}
+                  />
+                </div>
+              )}
               {/* Goal events split by team */}
               {lastMatchEvents.filter((e) => e.type === "Goal").length > 0 && (
                 <div className="mt-4 pt-4 border-t border-card-border">
@@ -976,6 +1072,22 @@ export default function Dashboard() {
                   {nextMatch.venueName}
                 </span>
               </div>
+              {/* Opponent context */}
+              {standings && standings.table.length > 0 && (
+                <div className="mt-4 pt-3 border-t border-card-border">
+                  <p className="text-[10px] text-muted uppercase tracking-wider font-semibold mb-1.5">
+                    Opponent
+                  </p>
+                  <OpponentSnippet
+                    teamId={
+                      nextMatch.homeTeam.id === TEAM_ID
+                        ? nextMatch.awayTeam.id
+                        : nextMatch.homeTeam.id
+                    }
+                    table={standings.table}
+                  />
+                </div>
+              )}
             </Card>
           ) : (
             <Card title="Next Match">
@@ -1013,7 +1125,17 @@ export default function Dashboard() {
         {/* Row 4: League Table */}
         {!loading && standings && standings.table.length > 0 && (
           <Card title="League Table" accent>
-            <LeagueTable table={standings.table} teamId={TEAM_ID} />
+            <LeagueTable
+              table={standings.table}
+              teamId={TEAM_ID}
+              nextOpponentId={
+                nextMatch
+                  ? nextMatch.homeTeam.id === TEAM_ID
+                    ? nextMatch.awayTeam.id
+                    : nextMatch.homeTeam.id
+                  : undefined
+              }
+            />
           </Card>
         )}
 
