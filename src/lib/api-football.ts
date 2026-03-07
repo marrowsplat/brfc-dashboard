@@ -55,6 +55,7 @@ async function fetchWithCache(
 }
 
 // --- Cache durations ---
+const MINUTES = (n: number) => n * 60 * 1000;
 const HOURS = (n: number) => n * 60 * 60 * 1000;
 
 // --- Public API ---
@@ -66,12 +67,17 @@ const SEASON = process.env.SEASON || "2024";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type FixtureResponse = any[];
 
-/** League standings — cached 2 hours */
+/**
+ * League standings — cached 15 minutes.
+ * API-Football updates standings hourly on match days, so 15 min is a
+ * good trade-off: max ~75 min staleness while keeping API calls low.
+ * Keyed by league (not team) so all team pages share one cached copy.
+ */
 export async function getStandings() {
   const data = (await fetchWithCache(
     "/standings",
     { league: LEAGUE_ID, season: SEASON },
-    HOURS(2)
+    MINUTES(15)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   )) as { response: any[] };
 
@@ -92,7 +98,7 @@ export async function getStandings() {
 }
 
 /**
- * All season fixtures — cached 2 hours.
+ * All season fixtures — cached 15 minutes.
  * This is the main data source. We filter from this for
  * "last" and "next" fixtures to avoid Pro-only params.
  */
@@ -100,7 +106,7 @@ export async function getSeasonFixtures(): Promise<FixtureResponse> {
   const data = (await fetchWithCache(
     "/fixtures",
     { team: TEAM_ID, league: LEAGUE_ID, season: SEASON },
-    HOURS(2)
+    MINUTES(15)
   )) as { response: FixtureResponse };
 
   return data.response || [];

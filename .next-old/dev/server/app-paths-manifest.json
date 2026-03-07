@@ -1,0 +1,6 @@
+{
+  "/api/fixture-stats/route": "app/api/fixture-stats/route.js",
+  "/api/fixtures/route": "app/api/fixtures/route.js",
+  "/api/standings/route": "app/api/standings/route.js",
+  "/page": "app/page.js"
+}

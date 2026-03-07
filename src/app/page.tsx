@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type {
   StandingEntry,
   StandingsResponse,
@@ -586,54 +586,69 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        setLoading(true);
-        const [standingsRes, lastRes, nextRes, seasonRes, playersRes, histRes] =
-          await Promise.all([
-            fetch("/api/standings"),
-            fetch("/api/fixtures?type=last&count=10"),
-            fetch("/api/fixtures?type=next&count=3"),
-            fetch("/api/fixtures?type=season"),
-            fetch("/api/players"),
-            fetch("/api/historical-fixtures?season=2024"),
-          ]);
+  // SWR-style data fetching: initial load + silent background refresh every 5 min
+  const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+  const refreshTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-        const standingsData: StandingsResponse = await standingsRes.json();
-        const lastData: Fixture[] = await lastRes.json();
-        const nextData: Fixture[] = await nextRes.json();
-        const seasonData: Fixture[] = await seasonRes.json();
-        const playersData: PlayerStats[] = await playersRes.json();
-        const histData: Fixture[] = await histRes.json();
+  const fetchData = useCallback(async (isBackground = false) => {
+    try {
+      if (!isBackground) setLoading(true);
+      const [standingsRes, lastRes, nextRes, seasonRes, playersRes, histRes] =
+        await Promise.all([
+          fetch("/api/standings"),
+          fetch("/api/fixtures?type=last&count=10"),
+          fetch("/api/fixtures?type=next&count=3"),
+          fetch("/api/fixtures?type=season"),
+          fetch("/api/players"),
+          fetch("/api/historical-fixtures?season=2024"),
+        ]);
 
-        setStandings(standingsData);
-        setLastFixtures(lastData);
-        setNextFixtures(nextData);
-        setSeasonFixtures(seasonData);
-        setPlayerStats(Array.isArray(playersData) ? playersData : []);
-        setHistoricalFixtures(Array.isArray(histData) ? histData : []);
-        setLastUpdated(new Date());
+      const standingsData: StandingsResponse = await standingsRes.json();
+      const lastData: Fixture[] = await lastRes.json();
+      const nextData: Fixture[] = await nextRes.json();
+      const seasonData: Fixture[] = await seasonRes.json();
+      const playersData: PlayerStats[] = await playersRes.json();
+      const histData: Fixture[] = await histRes.json();
 
-        // Fetch events for the most recent completed fixture
-        if (lastData.length > 0) {
-          const lastMatch = lastData[lastData.length - 1];
-          const eventsRes = await fetch(
-            `/api/fixture-stats?id=${lastMatch.id}`
-          );
-          const eventsData = await eventsRes.json();
-          setLastMatchEvents(eventsData.events || []);
-          setLastMatchStats(eventsData.stats || null);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load data");
-      } finally {
-        setLoading(false);
+      setStandings(standingsData);
+      setLastFixtures(lastData);
+      setNextFixtures(nextData);
+      setSeasonFixtures(seasonData);
+      setPlayerStats(Array.isArray(playersData) ? playersData : []);
+      setHistoricalFixtures(Array.isArray(histData) ? histData : []);
+      setLastUpdated(new Date());
+
+      // Fetch events for the most recent completed fixture
+      if (lastData.length > 0) {
+        const lastMatch = lastData[lastData.length - 1];
+        const eventsRes = await fetch(
+          `/api/fixture-stats?id=${lastMatch.id}`
+        );
+        const eventsData = await eventsRes.json();
+        setLastMatchEvents(eventsData.events || []);
+        setLastMatchStats(eventsData.stats || null);
       }
+    } catch (err) {
+      // Only show error on initial load, not background refreshes
+      if (!isBackground) {
+        setError(err instanceof Error ? err.message : "Failed to load data");
+      }
+    } finally {
+      if (!isBackground) setLoading(false);
     }
-
-    fetchData();
   }, []);
+
+  useEffect(() => {
+    fetchData(false);
+
+    // Background refresh: silently re-fetch every 5 minutes
+    // CDN serves cached responses instantly, so this is very cheap
+    refreshTimer.current = setInterval(() => fetchData(true), REFRESH_INTERVAL_MS);
+
+    return () => {
+      if (refreshTimer.current) clearInterval(refreshTimer.current);
+    };
+  }, [fetchData]);
 
   if (error) {
     return (
@@ -746,7 +761,7 @@ export default function Dashboard() {
           </div>
           {lastUpdated && (
             <p className="text-blue-300/70 text-xs mt-4">
-              Last updated {lastUpdated.toLocaleTimeString("en-GB")}
+              Last updated {lastUpdated.toLocaleTimeString("en-GB")} · refreshes automatically
             </p>
           )}
         </div>
@@ -1171,7 +1186,7 @@ export default function Dashboard() {
       <footer className="max-w-5xl mx-auto px-4 sm:px-6 py-8 text-center">
         <p className="text-xs text-muted">
           <span className="font-semibold text-brfc-gold">DashboardFC</span>{" "}
-          <span className="text-subtle">v1.21</span>
+          <span className="text-subtle">v1.22</span>
           <span className="mx-2 text-subtle">&middot;</span>
           Data from{" "}
           <a

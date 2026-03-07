@@ -4,6 +4,25 @@ All notable changes to DashboardFC will be documented here. Copy each new entry 
 
 ---
 
+## v1.22 — 7 March 2026
+
+**Caching overhaul — fresher data, smarter scaling**
+
+### Improved
+- **Standings & fixtures now refresh every 15 minutes** — reduced from 2-hour cache, matching API-Football's hourly update cycle more closely
+- **ISR (Incremental Static Regeneration)** on all API routes — Vercel CDN edge-caches responses and revalidates automatically, so one fetch serves all users
+- **HTTP Cache-Control headers** on every route with `stale-while-revalidate` — users always get an instant response while fresh data loads in the background
+- **Client-side auto-refresh** — dashboard silently re-fetches every 5 minutes so open tabs stay current without manual reload
+- **"Refreshes automatically" indicator** in header so users know data stays live
+- **Tiered caching** — standings/fixtures at 15 min, players at 1 hour, historical data at 24 hours (data changes at different rates)
+
+### Under the hood
+- Standings cache keyed by league (not team) — all team pages share one cached copy at scale
+- Added `ROADMAP.md` documenting virtual live table and caching deep dive plans
+- TypeScript clean — zero type errors
+
+---
+
 ## v1.21 — 5 March 2026
 
 **Big feature drop — charts, tables, squad stats, and season comparison!**

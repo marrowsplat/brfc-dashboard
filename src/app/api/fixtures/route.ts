@@ -6,6 +6,9 @@ import {
 } from "@/lib/api-football";
 import { transformFixtures } from "@/lib/adapters/api-football-adapter";
 
+/** ISR: revalidate every 15 minutes at the CDN edge */
+export const revalidate = 900;
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const type = searchParams.get("type") || "last";
@@ -26,7 +29,11 @@ export async function GET(request: Request) {
         break;
     }
     const data = transformFixtures(raw);
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      headers: {
+        "Cache-Control": "s-maxage=900, stale-while-revalidate=1800",
+      },
+    });
   } catch (error) {
     console.error("Fixtures error:", error);
     return NextResponse.json(

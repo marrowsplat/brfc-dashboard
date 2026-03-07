@@ -5,6 +5,9 @@ import {
   transformMatchStats,
 } from "@/lib/adapters/api-football-adapter";
 
+/** ISR: match stats are immutable once FT — long revalidation */
+export const revalidate = 86400;
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const fixtureId = searchParams.get("id");
@@ -24,7 +27,11 @@ export async function GET(request: Request) {
 
     const stats = transformMatchStats(rawStats as never[]);
     const events = transformEvents(rawEvents);
-    return NextResponse.json({ stats, events });
+    return NextResponse.json({ stats, events }, {
+      headers: {
+        "Cache-Control": "s-maxage=86400, stale-while-revalidate=172800",
+      },
+    });
   } catch (error) {
     console.error("Fixture stats error:", error);
     return NextResponse.json(

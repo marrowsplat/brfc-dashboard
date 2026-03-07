@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { getHistoricalSeasonFixtures } from "@/lib/api-football";
 import { transformFixtures } from "@/lib/adapters/api-football-adapter";
 
+/** ISR: historical data doesn't change — revalidate daily */
+export const revalidate = 86400;
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const season = searchParams.get("season");
@@ -16,7 +19,11 @@ export async function GET(request: Request) {
   try {
     const raw = await getHistoricalSeasonFixtures(season);
     const data = transformFixtures(raw);
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      headers: {
+        "Cache-Control": "s-maxage=86400, stale-while-revalidate=172800",
+      },
+    });
   } catch (error) {
     console.error("Historical fixtures error:", error);
     return NextResponse.json(
