@@ -222,7 +222,7 @@ function FormDots({ form, size = "sm" }: { form: string; size?: "sm" | "xs" }) {
         return (
           <span
             key={i}
-            className={`${dotSize} rounded-full ${color}`}
+            className={`${dotSize} rounded-sm ${color}`}
             title={ch === "W" ? "Win" : ch === "D" ? "Draw" : ch === "L" ? "Loss" : ch}
           />
         );
@@ -412,8 +412,10 @@ function LeagueTable({
                   >
                     {entry.points}
                   </td>
-                  <td className="py-2 text-center pr-2 hidden sm:table-cell">
-                    <FormDots form={entry.form} size="xs" />
+                  <td className="py-2 pr-2 hidden sm:table-cell">
+                    <div className="flex justify-center">
+                      <FormDots form={entry.form} size="xs" />
+                    </div>
                   </td>
                 </tr>
               );
