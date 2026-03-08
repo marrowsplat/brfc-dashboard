@@ -582,6 +582,7 @@ export default function Dashboard() {
   const [seasonFixtures, setSeasonFixtures] = useState<Fixture[]>([]);
   const [playerStats, setPlayerStats] = useState<PlayerStats[]>([]);
   const [historicalFixtures, setHistoricalFixtures] = useState<Fixture[]>([]);
+  const [leagueFixtures, setLeagueFixtures] = useState<Fixture[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
@@ -593,7 +594,7 @@ export default function Dashboard() {
   const fetchData = useCallback(async (isBackground = false) => {
     try {
       if (!isBackground) setLoading(true);
-      const [standingsRes, lastRes, nextRes, seasonRes, playersRes, histRes] =
+      const [standingsRes, lastRes, nextRes, seasonRes, playersRes, histRes, leagueRes] =
         await Promise.all([
           fetch("/api/standings"),
           fetch("/api/fixtures?type=last&count=10"),
@@ -601,6 +602,7 @@ export default function Dashboard() {
           fetch("/api/fixtures?type=season"),
           fetch("/api/players"),
           fetch("/api/historical-fixtures?season=2024"),
+          fetch("/api/league-fixtures"),
         ]);
 
       const standingsData: StandingsResponse = await standingsRes.json();
@@ -609,6 +611,7 @@ export default function Dashboard() {
       const seasonData: Fixture[] = await seasonRes.json();
       const playersData: PlayerStats[] = await playersRes.json();
       const histData: Fixture[] = await histRes.json();
+      const leagueData: Fixture[] = await leagueRes.json();
 
       setStandings(standingsData);
       setLastFixtures(lastData);
@@ -616,6 +619,7 @@ export default function Dashboard() {
       setSeasonFixtures(seasonData);
       setPlayerStats(Array.isArray(playersData) ? playersData : []);
       setHistoricalFixtures(Array.isArray(histData) ? histData : []);
+      setLeagueFixtures(Array.isArray(leagueData) ? leagueData : []);
       setLastUpdated(new Date());
 
       // Fetch events for the most recent completed fixture
@@ -672,25 +676,125 @@ export default function Dashboard() {
     );
   }
 
-  // Compute accurate form string from actual fixtures (last 5 to match API convention)
-  const computedForm = lastFixtures
-    .slice(-5)
-    .map((f) => resultFor(f, TEAM_ID) ?? "")
-    .join("");
+  // ─── Virtual Live Table ───────────────────────────────────
+  // Correct the entire standings table using completed fixture results
+  // that the API standings endpoint hasn't yet incorporated.
 
-  // Override our team's form in the standings table so all components use accurate data
-  const correctedTable: StandingEntry[] = (standings?.table ?? []).map((entry) =>
-    entry.team.id === TEAM_ID ? { ...entry, form: computedForm } : entry
-  );
-  const correctedStandings = standings
-    ? {
-        ...standings,
-        table: correctedTable,
-        team: standings.team
-          ? { ...standings.team, form: computedForm }
-          : null,
+  const correctedStandings = (() => {
+    if (!standings) return null;
+
+    // Build a map of completed league fixtures by team
+    const completedLeague = leagueFixtures.filter((f) => f.status === "FT");
+
+    // Count completed matches per team from fixture data
+    const fixturePlayedCount = new Map<number, number>();
+    const fixtureResults = new Map<number, { w: number; d: number; l: number; gf: number; ga: number }>();
+
+    for (const f of completedLeague) {
+      const homeId = f.homeTeam.id;
+      const awayId = f.awayTeam.id;
+      if (f.homeGoals === null || f.awayGoals === null) continue;
+
+      fixturePlayedCount.set(homeId, (fixturePlayedCount.get(homeId) || 0) + 1);
+      fixturePlayedCount.set(awayId, (fixturePlayedCount.get(awayId) || 0) + 1);
+
+      // Accumulate full-season stats from fixtures
+      const homeStats = fixtureResults.get(homeId) || { w: 0, d: 0, l: 0, gf: 0, ga: 0 };
+      const awayStats = fixtureResults.get(awayId) || { w: 0, d: 0, l: 0, gf: 0, ga: 0 };
+
+      homeStats.gf += f.homeGoals;
+      homeStats.ga += f.awayGoals;
+      awayStats.gf += f.awayGoals;
+      awayStats.ga += f.homeGoals;
+
+      if (f.homeGoals > f.awayGoals) {
+        homeStats.w++;
+        awayStats.l++;
+      } else if (f.homeGoals < f.awayGoals) {
+        homeStats.l++;
+        awayStats.w++;
+      } else {
+        homeStats.d++;
+        awayStats.d++;
       }
-    : null;
+
+      fixtureResults.set(homeId, homeStats);
+      fixtureResults.set(awayId, awayStats);
+    }
+
+    // Compute form strings from last 5 completed fixtures per team
+    const teamFormMap = new Map<number, string>();
+    const teamFixturesMap = new Map<number, Fixture[]>();
+    for (const f of completedLeague) {
+      if (f.homeGoals === null || f.awayGoals === null) continue;
+      const homeId = f.homeTeam.id;
+      const awayId = f.awayTeam.id;
+      if (!teamFixturesMap.has(homeId)) teamFixturesMap.set(homeId, []);
+      if (!teamFixturesMap.has(awayId)) teamFixturesMap.set(awayId, []);
+      teamFixturesMap.get(homeId)!.push(f);
+      teamFixturesMap.get(awayId)!.push(f);
+    }
+    for (const [teamId, fixtures] of teamFixturesMap) {
+      // Sort by date ascending, take last 5
+      const sorted = [...fixtures].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+      );
+      const last5 = sorted.slice(-5);
+      const form = last5.map((f) => resultFor(f, teamId) ?? "").join("");
+      teamFormMap.set(teamId, form);
+    }
+
+    // Correct each team's standings entry
+    const correctedTable: StandingEntry[] = standings.table.map((entry) => {
+      const teamId = entry.team.id;
+      const fixtPlayed = fixturePlayedCount.get(teamId) || 0;
+      const standingsPlayed = entry.played;
+      const stats = fixtureResults.get(teamId);
+      const form = teamFormMap.get(teamId);
+
+      // If fixtures show more games played than standings, use fixture data
+      // This catches the case where standings haven't updated with recent results
+      if (fixtPlayed > standingsPlayed && stats) {
+        const points = stats.w * 3 + stats.d;
+        return {
+          ...entry,
+          played: fixtPlayed,
+          wins: stats.w,
+          draws: stats.d,
+          losses: stats.l,
+          goalsFor: stats.gf,
+          goalsAgainst: stats.ga,
+          goalsDiff: stats.gf - stats.ga,
+          points,
+          form: form || entry.form,
+        };
+      }
+
+      // Even if played count matches, correct the form string
+      return form ? { ...entry, form } : entry;
+    });
+
+    // Re-sort by points, then GD, then GF (standard football tiebreakers)
+    correctedTable.sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+      if (b.goalsDiff !== a.goalsDiff) return b.goalsDiff - a.goalsDiff;
+      return b.goalsFor - a.goalsFor;
+    });
+
+    // Reassign ranks
+    correctedTable.forEach((entry, i) => {
+      entry.rank = i + 1;
+    });
+
+    // Find our team entry
+    const teamEntry = correctedTable.find((e) => e.team.id === TEAM_ID) || null;
+
+    return {
+      ...standings,
+      table: correctedTable,
+      team: teamEntry,
+    };
+  })();
 
   const team: StandingEntry | null = correctedStandings?.team ?? null;
   const lastMatch =
@@ -1186,7 +1290,7 @@ export default function Dashboard() {
       <footer className="max-w-5xl mx-auto px-4 sm:px-6 py-8 text-center">
         <p className="text-xs text-muted">
           <span className="font-semibold text-brfc-gold">DashboardFC</span>{" "}
-          <span className="text-subtle">v1.22</span>
+          <span className="text-subtle">v1.23</span>
           <span className="mx-2 text-subtle">&middot;</span>
           Data from{" "}
           <a

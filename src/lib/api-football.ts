@@ -251,6 +251,22 @@ export async function getPlayerStats() {
 }
 
 /**
+ * ALL league fixtures for the current season — cached 15 minutes.
+ * Not filtered by team, so we get every match in the league.
+ * Used to build a "virtual live table" that corrects standings
+ * with results the API hasn't yet incorporated.
+ */
+export async function getAllLeagueFixtures(): Promise<FixtureResponse> {
+  const data = (await fetchWithCache(
+    "/fixtures",
+    { league: LEAGUE_ID, season: SEASON },
+    MINUTES(15)
+  )) as { response: FixtureResponse };
+
+  return data.response || [];
+}
+
+/**
  * Season fixtures for a specific season (for historical comparison).
  * Cached indefinitely (past seasons don't change).
  */

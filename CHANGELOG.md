@@ -4,6 +4,24 @@ All notable changes to DashboardFC will be documented here. Copy each new entry 
 
 ---
 
+## v1.23 — 8 March 2026
+
+**Virtual Live Table — league table now corrects itself from fixture results**
+
+### New
+- **Virtual Live Table** — the league table now cross-references standings with actual fixture results and automatically corrects points, W/D/L, GF/GA, GD, and form for every team. If the API standings are behind (up to 1 hour on match days), the table fills in the gaps from completed fixtures
+- **All-league fixtures endpoint** — new `/api/league-fixtures` route fetches every match in the league (not just Rovers), giving us the data to correct the full table
+- **Form strings computed from fixtures** — every team's form dots are now derived from actual results rather than the sometimes-stale API form field
+- **Auto re-ranking** — after corrections, the table is re-sorted by points → GD → GF and ranks are reassigned, so positions are always accurate
+
+### Under the hood
+- New `getAllLeagueFixtures()` in api-football.ts — fetches all league fixtures, cached 15 minutes
+- Replaced the old `correctedStandings` (which only fixed Rovers' form) with a full table reconciliation that handles every team
+- When fixture data shows more games played than standings report, the entire row switches to fixture-derived stats
+- TypeScript clean — zero type errors
+
+---
+
 ## v1.22 — 7 March 2026
 
 **Caching overhaul — fresher data, smarter scaling**
