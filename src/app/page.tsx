@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import type {
   StandingEntry,
   StandingsResponse,
@@ -9,7 +10,11 @@ import type {
   MatchStats,
   PlayerStats,
 } from "@/lib/domain-types";
-import { PointsChart, GoalsChart, HomeAwayChart } from "./charts";
+
+// Lazy-load chart components — they're below the fold and pull in Recharts (~80KB)
+const PointsChart = dynamic(() => import("./charts").then((m) => ({ default: m.PointsChart })), { ssr: false });
+const GoalsChart = dynamic(() => import("./charts").then((m) => ({ default: m.GoalsChart })), { ssr: false });
+const HomeAwayChart = dynamic(() => import("./charts").then((m) => ({ default: m.HomeAwayChart })), { ssr: false });
 
 // ─── Helpers ───────────────────────────────────────────────
 
@@ -35,6 +40,90 @@ function daysUntil(dateStr: string) {
   if (days === 0) return "Today";
   if (days === 1) return "Tomorrow";
   return `In ${days} days`;
+}
+
+// ─── Live Countdown ───────────────────────────────────────
+
+function Countdown({ targetDate }: { targetDate: string }) {
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const diff = new Date(targetDate).getTime() - now;
+  if (diff <= 0) return <span>Now</span>;
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+  const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+  if (days > 0) {
+    return <span>{days}d {hours}h {minutes}m</span>;
+  }
+  return <span>{hours}h {minutes}m {seconds}s</span>;
+}
+
+// ─── GD Trend Sparkline ───────────────────────────────────
+
+function GDSparkline({ fixtures, teamId }: { fixtures: Fixture[]; teamId: number }) {
+  const last10 = fixtures.filter((f) => f.status === "FT").slice(-10);
+  if (last10.length < 2) return null;
+
+  const gdPerMatch = last10.map((f) => {
+    const isHome = f.homeTeam.id === teamId;
+    const gf = isHome ? f.homeGoals ?? 0 : f.awayGoals ?? 0;
+    const ga = isHome ? f.awayGoals ?? 0 : f.homeGoals ?? 0;
+    return gf - ga;
+  });
+
+  const max = Math.max(...gdPerMatch.map(Math.abs), 1);
+  const w = 120;
+  const h = 32;
+  const midY = h / 2;
+  const step = w / (gdPerMatch.length - 1);
+
+  const points = gdPerMatch.map((gd, i) => {
+    const x = i * step;
+    const y = midY - (gd / max) * (midY - 2);
+    return `${x},${y}`;
+  }).join(" ");
+
+  const trend = gdPerMatch.slice(-3).reduce((a, b) => a + b, 0);
+  const color = trend > 0 ? "#16a34a" : trend < 0 ? "#dc2626" : "#94a3b8";
+
+  return (
+    <div className="flex flex-col items-center">
+      <svg width={w} height={h} className="overflow-visible">
+        <line x1={0} y1={midY} x2={w} y2={midY} stroke="#e2e8f0" strokeWidth={1} />
+        <polyline points={points} fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" />
+        {gdPerMatch.map((gd, i) => (
+          <circle key={i} cx={i * step} cy={midY - (gd / max) * (midY - 2)} r={2} fill={gd > 0 ? "#16a34a" : gd < 0 ? "#dc2626" : "#94a3b8"} />
+        ))}
+      </svg>
+      <span className="text-[9px] text-muted mt-0.5">Last 10 GD per match</span>
+    </div>
+  );
+}
+
+// ─── Season Progress Bar ──────────────────────────────────
+
+function SeasonProgress({ played, total }: { played: number; total: number }) {
+  const pct = total > 0 ? Math.round((played / total) * 100) : 0;
+  return (
+    <div className="flex items-center gap-3 text-xs text-blue-200/80">
+      <span className="whitespace-nowrap font-medium">{played} of {total} played</span>
+      <div className="flex-1 h-1.5 bg-white/10 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-brfc-gold rounded-full transition-all duration-700"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <span className="whitespace-nowrap font-medium">{pct}%</span>
+    </div>
+  );
 }
 
 function resultFor(
@@ -136,13 +225,53 @@ function Card({
   );
 }
 
-function LoadingCard({ title }: { title: string }) {
+function LoadingCard({ title, variant = "default" }: { title: string; variant?: "default" | "match" | "stat" | "table" }) {
   return (
     <Card title={title}>
-      <div className="animate-pulse space-y-3">
-        <div className="h-4 bg-slate-200 rounded-full w-3/4" />
-        <div className="h-4 bg-slate-200 rounded-full w-1/2" />
-        <div className="h-4 bg-slate-200 rounded-full w-2/3" />
+      <div className="animate-pulse">
+        {variant === "match" ? (
+          <div className="space-y-3">
+            <div className="h-3 bg-slate-200 rounded-full w-2/5" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 bg-slate-200 rounded-xl" />
+                <div className="h-4 bg-slate-200 rounded-full w-20" />
+              </div>
+              <div className="h-8 bg-slate-200 rounded-lg w-16" />
+              <div className="flex items-center gap-2">
+                <div className="h-4 bg-slate-200 rounded-full w-20" />
+                <div className="w-10 h-10 bg-slate-200 rounded-xl" />
+              </div>
+            </div>
+          </div>
+        ) : variant === "stat" ? (
+          <div className="flex items-center gap-5">
+            <div className="w-20 h-20 bg-slate-200 rounded-2xl" />
+            <div className="space-y-2 flex-1">
+              <div className="h-5 bg-slate-200 rounded-full w-16" />
+              <div className="h-3 bg-slate-200 rounded-full w-24" />
+              <div className="h-3 bg-slate-200 rounded-full w-12" />
+            </div>
+          </div>
+        ) : variant === "table" ? (
+          <div className="space-y-2">
+            {[...Array(7)].map((_, i) => (
+              <div key={i} className="flex gap-3 items-center">
+                <div className="h-3 bg-slate-200 rounded-full w-6" />
+                <div className="w-4 h-4 bg-slate-200 rounded-full" />
+                <div className="h-3 bg-slate-200 rounded-full flex-1" />
+                <div className="h-3 bg-slate-200 rounded-full w-8" />
+                <div className="h-3 bg-slate-200 rounded-full w-8" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="h-4 bg-slate-200 rounded-full w-3/4" />
+            <div className="h-4 bg-slate-200 rounded-full w-1/2" />
+            <div className="h-4 bg-slate-200 rounded-full w-2/3" />
+          </div>
+        )}
       </div>
     </Card>
   );
@@ -310,6 +439,9 @@ function LeagueTable({
   const endIdx = Math.min(table.length, teamIdx + windowSize + 1);
   const displayTable = expanded ? table : table.slice(startIdx, endIdx);
 
+  // Games in hand: max played in the league
+  const maxPlayed = Math.max(...table.map((e) => e.played));
+
   // Zone boundaries for League Two
   const promoZone = 3;
   const playoffZone = 7;
@@ -420,6 +552,14 @@ function LeagueTable({
                       {isNextOpponent && (
                         <span className="text-[9px] text-brfc-gold font-bold uppercase tracking-wider">
                           Next
+                        </span>
+                      )}
+                      {maxPlayed - entry.played > 0 && (
+                        <span
+                          className="text-[9px] text-blue-500 font-bold hidden sm:inline"
+                          title={`${maxPlayed - entry.played} game${maxPlayed - entry.played > 1 ? "s" : ""} in hand`}
+                        >
+                          {maxPlayed - entry.played}GIH
                         </span>
                       )}
                     </div>
@@ -936,6 +1076,11 @@ export default function Dashboard() {
               Last updated {lastUpdated.toLocaleTimeString("en-GB")} · refreshes automatically
             </p>
           )}
+          {team && (
+            <div className="mt-3">
+              <SeasonProgress played={team.played} total={46} />
+            </div>
+          )}
         </div>
       </header>
 
@@ -945,7 +1090,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* League Position */}
           {loading ? (
-            <LoadingCard title="League Position" />
+            <LoadingCard title="League Position" variant="stat" />
           ) : team ? (
             <Card title="League Position" accent>
               <div className="flex items-center gap-5">
@@ -1075,7 +1220,7 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Last Fixture */}
           {loading ? (
-            <LoadingCard title="Last Match" />
+            <LoadingCard title="Last Match" variant="match" />
           ) : lastMatch ? (
             <Card title="Last Match" accent>
               <div className="text-xs text-muted mb-3 font-medium">
@@ -1217,7 +1362,7 @@ export default function Dashboard() {
 
           {/* Next Fixture */}
           {loading ? (
-            <LoadingCard title="Next Match" />
+            <LoadingCard title="Next Match" variant="match" />
           ) : nextMatch ? (
             <Card title="Next Match" accent>
               <div className="text-xs text-muted mb-3 font-medium">
@@ -1260,8 +1405,8 @@ export default function Dashboard() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <span className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-brfc-blue text-white text-xs font-bold shadow-sm shadow-brfc-blue/20">
-                  {daysUntil(nextMatch.date)}
+                <span className="inline-flex items-center px-3.5 py-1.5 rounded-full bg-brfc-blue text-white text-xs font-bold shadow-sm shadow-brfc-blue/20 tabular-nums">
+                  <Countdown targetDate={nextMatch.date} />
                 </span>
                 <span className="text-xs text-muted">
                   {nextMatch.venueName}
@@ -1275,10 +1420,39 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Row 3: Season Overview */}
+        {/* Row 3: Recent Results */}
+        {!loading && lastFixtures.length > 3 && (
+          <Card title="Recent Results" accent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
+              {lastFixtures.slice(-10).reverse().map((f) => {
+                const res = resultFor(f, TEAM_ID);
+                const isHome = f.homeTeam.id === TEAM_ID;
+                const opponent = isHome ? f.awayTeam.name : f.homeTeam.name;
+                const resBg = res === "W" ? "bg-win" : res === "L" ? "bg-loss" : res === "D" ? "bg-draw" : "bg-slate-300";
+                const matchDate = new Date(f.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+                return (
+                  <div key={f.id} className="flex items-center gap-2 py-1.5 border-b border-slate-50 last:border-0">
+                    <span className={`w-5 h-5 rounded-sm text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 ${resBg}`}>
+                      {res}
+                    </span>
+                    <span className="text-xs text-slate-700 font-medium truncate flex-1">
+                      {isHome ? "vs" : "@"} {opponent}
+                    </span>
+                    <span className="text-xs font-bold text-slate-800 tabular-nums">
+                      {f.homeGoals}–{f.awayGoals}
+                    </span>
+                    <span className="text-[10px] text-muted w-12 text-right">{matchDate}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        )}
+
+        {/* Row 4: Season Overview */}
         {!loading && team && (
           <Card title="Season Overview" accent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
               <StatBox
                 value={team.goalsFor}
                 label="Goals Scored"
@@ -1297,11 +1471,14 @@ export default function Dashboard() {
                 label="Win Rate"
                 color={team.wins > team.losses ? "text-win" : "text-loss"}
               />
+              <div className="flex items-center justify-center">
+                <GDSparkline fixtures={seasonFixtures} teamId={TEAM_ID} />
+              </div>
             </div>
           </Card>
         )}
 
-        {/* Row 4: League Table */}
+        {/* Row 5: League Table */}
         {!loading && correctedStandings && correctedStandings.table.length > 0 && (
           <Card title="League Table" accent>
             <LeagueTable
@@ -1318,14 +1495,14 @@ export default function Dashboard() {
           </Card>
         )}
 
-        {/* Row 5: Player Stats */}
+        {/* Row 6: Player Stats */}
         {!loading && playerStats.length > 0 && (
           <Card title="Squad Stats" accent>
             <PlayerStatsTable players={playerStats} />
           </Card>
         )}
 
-        {/* Row 6: Season Charts */}
+        {/* Row 7: Season Charts */}
         {!loading && seasonFixtures.length > 0 && (
           <>
             <Card title="Points Accumulation" accent>
@@ -1358,7 +1535,7 @@ export default function Dashboard() {
       <footer className="max-w-5xl mx-auto px-4 sm:px-6 py-8 text-center">
         <p className="text-xs text-muted">
           <span className="font-semibold text-brfc-gold">DashboardFC</span>{" "}
-          <span className="text-subtle">v1.24</span>
+          <span className="text-subtle">v1.25</span>
           <span className="mx-2 text-subtle">&middot;</span>
           Data from{" "}
           <a

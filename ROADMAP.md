@@ -63,6 +63,7 @@ A dedicated session to audit and optimise our API usage and caching strategy. Ke
 
 ## Ideas Backlog
 
+- **Mobile league table improvements** — the Home/Away split view is cramped on mobile. Add horizontal scroll indicator, or simplify to essential columns only on small screens. Consider a swipeable card layout as an alternative
 - **Branding & custom domain** — logo, colours, custom URL
 - **Dark mode** — full theme toggle
 - **Multi-team support** — team selector, URL routing per team

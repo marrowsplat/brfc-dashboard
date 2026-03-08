@@ -4,6 +4,31 @@ All notable changes to DashboardFC will be documented here. Copy each new entry 
 
 ---
 
+## v1.25 — 8 March 2026
+
+**UX & performance — lazy loading, live countdown, skeletons, and more**
+
+### New
+- **Live countdown timer** — Next Match card now shows a ticking countdown (days/hours/minutes/seconds) instead of a static "In 3 days"
+- **Recent Results list** — compact two-column list showing last 10 results with result badge, opponent, score, and date
+- **Season progress bar** — gold progress bar in the header showing games played out of 46 with percentage
+- **Games in hand indicator** — teams with fewer games played show a "GIH" badge in the league table (e.g. "2GIH" = 2 games in hand). Hover for explanation
+- **GD trend sparkline** — SVG mini-chart in Season Overview showing goal difference per match over the last 10 games. Green = improving, red = worsening
+
+### Improved
+- **Lazy-loaded charts** — Points, Goals, and Home/Away charts now load on demand via `next/dynamic`, reducing initial page weight by ~80KB (Recharts is deferred)
+- **Loading skeletons** — replaced generic grey bars with layout-specific skeleton placeholders for match cards, stat cards, and table rows. Feels faster on load
+- **Loading card variants** — match, stat, and table skeletons now match the actual card layout they replace
+
+### Under the hood
+- Charts use `dynamic(() => import(...), { ssr: false })` for code splitting
+- Countdown component uses 1-second interval with cleanup on unmount
+- GD sparkline is pure SVG (no chart library), keeping it lightweight
+- Mobile league table improvements saved to ROADMAP.md for future session
+- TypeScript clean — zero type errors
+
+---
+
 ## v1.24 — 8 March 2026
 
 **Enhanced league table — Home/Away split, PPG, Draw %, and header tooltips**
