@@ -65,11 +65,15 @@ function transformStandingEntry(entry: any): StandingEntry {
       w: entry.home.win,
       d: entry.home.draw,
       l: entry.home.lose,
+      gf: entry.home.goals.for,
+      ga: entry.home.goals.against,
     },
     awayRecord: {
       w: entry.away.win,
       d: entry.away.draw,
       l: entry.away.lose,
+      gf: entry.away.goals.for,
+      ga: entry.away.goals.against,
     },
   };
 }

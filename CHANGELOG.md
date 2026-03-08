@@ -4,6 +4,24 @@ All notable changes to DashboardFC will be documented here. Copy each new entry 
 
 ---
 
+## v1.24 — 8 March 2026
+
+**Enhanced league table — Home/Away split, PPG, Draw %, and header tooltips**
+
+### New
+- **Home/Away split view** — toggle button switches the table between overall W/D/L and a full home/away breakdown (HW/HD/HL/HF/HA + AW/AD/AL/AF/AA)
+- **PPG column** — points per game average shown for every team
+- **%D column** — draw percentage, useful for spotting teams that draw a lot
+- **Column header tooltips** — hover over any column header to see what the abbreviation means (e.g. "GD" → "Goal difference (goals scored minus goals conceded)")
+
+### Under the hood
+- Extended `StandingEntry` domain type with home/away goals (gf/ga) alongside existing W/D/L
+- Adapter now extracts home/away goals from API-Football response
+- Virtual live table correction now includes full home/away stats when rebuilding from fixtures
+- New reusable `Th` component for table headers with tooltip support
+
+---
+
 ## v1.23 — 8 March 2026
 
 **Virtual Live Table — league table now corrects itself from fixture results**

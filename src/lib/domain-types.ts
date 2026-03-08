@@ -32,8 +32,8 @@ export interface StandingEntry {
   goalsFor: number;
   goalsAgainst: number;
   form: string;
-  homeRecord: { w: number; d: number; l: number };
-  awayRecord: { w: number; d: number; l: number };
+  homeRecord: { w: number; d: number; l: number; gf: number; ga: number };
+  awayRecord: { w: number; d: number; l: number; gf: number; ga: number };
 }
 
 export interface StandingsResponse {

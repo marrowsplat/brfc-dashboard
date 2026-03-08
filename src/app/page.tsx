@@ -274,6 +274,22 @@ function TeamNameWithForm({
 
 // ─── League Table ──────────────────────────────────────────
 
+function Th({
+  children,
+  tip,
+  className = "",
+}: {
+  children: React.ReactNode;
+  tip: string;
+  className?: string;
+}) {
+  return (
+    <th className={`py-2 font-semibold cursor-help ${className}`} title={tip}>
+      {children}
+    </th>
+  );
+}
+
 function LeagueTable({
   table,
   teamId,
@@ -284,6 +300,7 @@ function LeagueTable({
   nextOpponentId?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [showHomeAway, setShowHomeAway] = useState(false);
 
   const teamIdx = table.findIndex((e) => e.team.id === teamId);
 
@@ -294,9 +311,9 @@ function LeagueTable({
   const displayTable = expanded ? table : table.slice(startIdx, endIdx);
 
   // Zone boundaries for League Two
-  const promoZone = 3; // auto promotion: 1-3
-  const playoffZone = 7; // playoffs: 4-7
-  const relegationZone = table.length - 1; // bottom 2: 23-24
+  const promoZone = 3;
+  const playoffZone = 7;
+  const relegationZone = table.length - 1;
 
   function zoneIndicator(rank: number) {
     if (rank <= promoZone) return "bg-green-500";
@@ -307,7 +324,15 @@ function LeagueTable({
 
   return (
     <div>
-      {/* Show ellipsis at top if compact view doesn't start at rank 1 */}
+      {/* View toggle */}
+      <div className="flex justify-end mb-2">
+        <button
+          onClick={() => setShowHomeAway(!showHomeAway)}
+          className="text-[10px] text-brfc-blue hover:text-brfc-blue-dark font-medium transition-colors"
+        >
+          {showHomeAway ? "Overall view" : "Home/Away split"}
+        </button>
+      </div>
       {!expanded && startIdx > 0 && (
         <p className="text-xs text-slate-300 text-center mb-1">···</p>
       )}
@@ -316,17 +341,36 @@ function LeagueTable({
           <thead>
             <tr className="text-[10px] uppercase tracking-wider text-muted border-b border-slate-100">
               <th className="w-1"></th>
-              <th className="text-left py-2 pl-2 font-semibold">#</th>
-              <th className="text-left py-2 font-semibold">Team</th>
-              <th className="text-center py-2 font-semibold">P</th>
-              <th className="text-center py-2 font-semibold">W</th>
-              <th className="text-center py-2 font-semibold">D</th>
-              <th className="text-center py-2 font-semibold">L</th>
-              <th className="text-center py-2 font-semibold hidden sm:table-cell">GF</th>
-              <th className="text-center py-2 font-semibold hidden sm:table-cell">GA</th>
-              <th className="text-center py-2 font-semibold">GD</th>
-              <th className="text-center py-2 font-semibold">Pts</th>
-              <th className="text-center py-2 pr-2 font-semibold hidden sm:table-cell">Form</th>
+              <Th tip="League position" className="text-left pl-2">#</Th>
+              <Th tip="Team name" className="text-left">Team</Th>
+              <Th tip="Games played this season" className="text-center">P</Th>
+              {!showHomeAway ? (
+                <>
+                  <Th tip="Total wins" className="text-center">W</Th>
+                  <Th tip="Total draws" className="text-center">D</Th>
+                  <Th tip="Total losses" className="text-center">L</Th>
+                  <Th tip="Goals scored" className="text-center hidden sm:table-cell">GF</Th>
+                  <Th tip="Goals conceded" className="text-center hidden sm:table-cell">GA</Th>
+                  <Th tip="Goal difference (goals scored minus goals conceded)" className="text-center">GD</Th>
+                </>
+              ) : (
+                <>
+                  <Th tip="Home wins" className="text-center">HW</Th>
+                  <Th tip="Home draws" className="text-center">HD</Th>
+                  <Th tip="Home losses" className="text-center">HL</Th>
+                  <Th tip="Home goals scored" className="text-center hidden sm:table-cell">HF</Th>
+                  <Th tip="Home goals conceded" className="text-center hidden sm:table-cell">HA</Th>
+                  <Th tip="Away wins" className="text-center">AW</Th>
+                  <Th tip="Away draws" className="text-center">AD</Th>
+                  <Th tip="Away losses" className="text-center">AL</Th>
+                  <Th tip="Away goals scored" className="text-center hidden sm:table-cell">AF</Th>
+                  <Th tip="Away goals conceded" className="text-center hidden sm:table-cell">AA</Th>
+                </>
+              )}
+              <Th tip="Total points (3 for a win, 1 for a draw)" className="text-center">Pts</Th>
+              <Th tip="Points per game average" className="text-center hidden sm:table-cell">PPG</Th>
+              <Th tip="Percentage of games drawn" className="text-center hidden md:table-cell">%D</Th>
+              <Th tip="Results from the last 5 matches" className="text-center pr-2 hidden sm:table-cell">Form</Th>
             </tr>
           </thead>
           <tbody>
@@ -336,6 +380,9 @@ function LeagueTable({
               let rowBg = "hover:bg-slate-50";
               if (isRovers) rowBg = "bg-brfc-blue/5 font-bold";
               else if (isNextOpponent) rowBg = "bg-brfc-gold/5";
+
+              const ppg = entry.played > 0 ? (entry.points / entry.played).toFixed(2) : "0.00";
+              const drawPct = entry.played > 0 ? Math.round((entry.draws / entry.played) * 100) : 0;
 
               return (
                 <tr
@@ -377,34 +424,36 @@ function LeagueTable({
                       )}
                     </div>
                   </td>
-                  <td className="py-2 text-center text-muted">
-                    {entry.played}
-                  </td>
-                  <td className="py-2 text-center text-muted">{entry.wins}</td>
-                  <td className="py-2 text-center text-muted">
-                    {entry.draws}
-                  </td>
-                  <td className="py-2 text-center text-muted">
-                    {entry.losses}
-                  </td>
-                  <td className="py-2 text-center text-muted hidden sm:table-cell">
-                    {entry.goalsFor}
-                  </td>
-                  <td className="py-2 text-center text-muted hidden sm:table-cell">
-                    {entry.goalsAgainst}
-                  </td>
-                  <td
-                    className={`py-2 text-center font-semibold ${
-                      entry.goalsDiff > 0
-                        ? "text-win"
-                        : entry.goalsDiff < 0
-                        ? "text-loss"
-                        : "text-muted"
-                    }`}
-                  >
-                    {entry.goalsDiff > 0 ? "+" : ""}
-                    {entry.goalsDiff}
-                  </td>
+                  <td className="py-2 text-center text-muted">{entry.played}</td>
+                  {!showHomeAway ? (
+                    <>
+                      <td className="py-2 text-center text-muted">{entry.wins}</td>
+                      <td className="py-2 text-center text-muted">{entry.draws}</td>
+                      <td className="py-2 text-center text-muted">{entry.losses}</td>
+                      <td className="py-2 text-center text-muted hidden sm:table-cell">{entry.goalsFor}</td>
+                      <td className="py-2 text-center text-muted hidden sm:table-cell">{entry.goalsAgainst}</td>
+                      <td
+                        className={`py-2 text-center font-semibold ${
+                          entry.goalsDiff > 0 ? "text-win" : entry.goalsDiff < 0 ? "text-loss" : "text-muted"
+                        }`}
+                      >
+                        {entry.goalsDiff > 0 ? "+" : ""}{entry.goalsDiff}
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="py-2 text-center text-muted">{entry.homeRecord.w}</td>
+                      <td className="py-2 text-center text-muted">{entry.homeRecord.d}</td>
+                      <td className="py-2 text-center text-muted">{entry.homeRecord.l}</td>
+                      <td className="py-2 text-center text-muted hidden sm:table-cell">{entry.homeRecord.gf}</td>
+                      <td className="py-2 text-center text-muted hidden sm:table-cell">{entry.homeRecord.ga}</td>
+                      <td className="py-2 text-center text-muted">{entry.awayRecord.w}</td>
+                      <td className="py-2 text-center text-muted">{entry.awayRecord.d}</td>
+                      <td className="py-2 text-center text-muted">{entry.awayRecord.l}</td>
+                      <td className="py-2 text-center text-muted hidden sm:table-cell">{entry.awayRecord.gf}</td>
+                      <td className="py-2 text-center text-muted hidden sm:table-cell">{entry.awayRecord.ga}</td>
+                    </>
+                  )}
                   <td
                     className={`py-2 text-center font-bold ${
                       isRovers ? "text-brfc-blue" : "text-slate-800"
@@ -412,6 +461,8 @@ function LeagueTable({
                   >
                     {entry.points}
                   </td>
+                  <td className="py-2 text-center text-muted hidden sm:table-cell">{ppg}</td>
+                  <td className="py-2 text-center text-muted hidden md:table-cell">{drawPct}%</td>
                   <td className="py-2 pr-2 hidden sm:table-cell">
                     <div className="flex justify-center">
                       <FormDots form={entry.form} size="xs" />
@@ -423,7 +474,6 @@ function LeagueTable({
           </tbody>
         </table>
       </div>
-      {/* Show ellipsis at bottom if compact view doesn't end at last rank */}
       {!expanded && endIdx < table.length && (
         <p className="text-xs text-slate-300 text-center mt-1">···</p>
       )}
@@ -688,7 +738,17 @@ export default function Dashboard() {
 
     // Count completed matches per team from fixture data
     const fixturePlayedCount = new Map<number, number>();
-    const fixtureResults = new Map<number, { w: number; d: number; l: number; gf: number; ga: number }>();
+    interface TeamStats {
+      w: number; d: number; l: number; gf: number; ga: number;
+      hw: number; hd: number; hl: number; hgf: number; hga: number;
+      aw: number; ad: number; al: number; agf: number; aga: number;
+    }
+    const emptyStats = (): TeamStats => ({
+      w: 0, d: 0, l: 0, gf: 0, ga: 0,
+      hw: 0, hd: 0, hl: 0, hgf: 0, hga: 0,
+      aw: 0, ad: 0, al: 0, agf: 0, aga: 0,
+    });
+    const fixtureResults = new Map<number, TeamStats>();
 
     for (const f of completedLeague) {
       const homeId = f.homeTeam.id;
@@ -698,24 +758,30 @@ export default function Dashboard() {
       fixturePlayedCount.set(homeId, (fixturePlayedCount.get(homeId) || 0) + 1);
       fixturePlayedCount.set(awayId, (fixturePlayedCount.get(awayId) || 0) + 1);
 
-      // Accumulate full-season stats from fixtures
-      const homeStats = fixtureResults.get(homeId) || { w: 0, d: 0, l: 0, gf: 0, ga: 0 };
-      const awayStats = fixtureResults.get(awayId) || { w: 0, d: 0, l: 0, gf: 0, ga: 0 };
+      const homeStats = fixtureResults.get(homeId) || emptyStats();
+      const awayStats = fixtureResults.get(awayId) || emptyStats();
 
+      // Overall
       homeStats.gf += f.homeGoals;
       homeStats.ga += f.awayGoals;
       awayStats.gf += f.awayGoals;
       awayStats.ga += f.homeGoals;
 
+      // Home/away goals
+      homeStats.hgf += f.homeGoals;
+      homeStats.hga += f.awayGoals;
+      awayStats.agf += f.awayGoals;
+      awayStats.aga += f.homeGoals;
+
       if (f.homeGoals > f.awayGoals) {
-        homeStats.w++;
-        awayStats.l++;
+        homeStats.w++; homeStats.hw++;
+        awayStats.l++; awayStats.al++;
       } else if (f.homeGoals < f.awayGoals) {
-        homeStats.l++;
-        awayStats.w++;
+        homeStats.l++; homeStats.hl++;
+        awayStats.w++; awayStats.aw++;
       } else {
-        homeStats.d++;
-        awayStats.d++;
+        homeStats.d++; homeStats.hd++;
+        awayStats.d++; awayStats.ad++;
       }
 
       fixtureResults.set(homeId, homeStats);
@@ -767,6 +833,8 @@ export default function Dashboard() {
           goalsDiff: stats.gf - stats.ga,
           points,
           form: form || entry.form,
+          homeRecord: { w: stats.hw, d: stats.hd, l: stats.hl, gf: stats.hgf, ga: stats.hga },
+          awayRecord: { w: stats.aw, d: stats.ad, l: stats.al, gf: stats.agf, ga: stats.aga },
         };
       }
 
@@ -1290,7 +1358,7 @@ export default function Dashboard() {
       <footer className="max-w-5xl mx-auto px-4 sm:px-6 py-8 text-center">
         <p className="text-xs text-muted">
           <span className="font-semibold text-brfc-gold">DashboardFC</span>{" "}
-          <span className="text-subtle">v1.23</span>
+          <span className="text-subtle">v1.24</span>
           <span className="mx-2 text-subtle">&middot;</span>
           Data from{" "}
           <a
