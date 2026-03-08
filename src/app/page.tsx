@@ -439,9 +439,6 @@ function LeagueTable({
   const endIdx = Math.min(table.length, teamIdx + windowSize + 1);
   const displayTable = expanded ? table : table.slice(startIdx, endIdx);
 
-  // Games in hand: max played in the league
-  const maxPlayed = Math.max(...table.map((e) => e.played));
-
   // Zone boundaries for League Two
   const promoZone = 3;
   const playoffZone = 7;
@@ -552,14 +549,6 @@ function LeagueTable({
                       {isNextOpponent && (
                         <span className="text-[9px] text-brfc-gold font-bold uppercase tracking-wider">
                           Next
-                        </span>
-                      )}
-                      {maxPlayed - entry.played > 0 && (
-                        <span
-                          className="text-[9px] text-blue-500 font-bold hidden sm:inline"
-                          title={`${maxPlayed - entry.played} game${maxPlayed - entry.played > 1 ? "s" : ""} in hand`}
-                        >
-                          {maxPlayed - entry.played}GIH
                         </span>
                       )}
                     </div>

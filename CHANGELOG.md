@@ -12,7 +12,6 @@ All notable changes to DashboardFC will be documented here. Copy each new entry 
 - **Live countdown timer** — Next Match card now shows a ticking countdown (days/hours/minutes/seconds) instead of a static "In 3 days"
 - **Recent Results list** — compact two-column list showing last 10 results with result badge, opponent, score, and date
 - **Season progress bar** — gold progress bar in the header showing games played out of 46 with percentage
-- **Games in hand indicator** — teams with fewer games played show a "GIH" badge in the league table (e.g. "2GIH" = 2 games in hand). Hover for explanation
 - **GD trend sparkline** — SVG mini-chart in Season Overview showing goal difference per match over the last 10 games. Green = improving, red = worsening
 
 ### Improved
