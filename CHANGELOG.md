@@ -4,6 +4,35 @@ All notable changes to DashboardFC will be documented here. Copy each new entry 
 
 ---
 
+## v1.26 — 9 March 2026
+
+**Head-to-head comparison, inline match details, and data accuracy fixes**
+
+### New
+- **Head-to-head comparison** — pick any two league teams from dropdowns and see a full side-by-side stat breakdown (Points, W/D/L, GF/GA, GD, PPG, Home/Away wins) with the better value highlighted in green. Also shows the last 5 historical meetings with scores and a W/D/L summary
+- **Inline match details** — click any fixture in Recent Results or Upcoming Fixtures to expand it in place. Completed matches show possession, shots, corners, fouls, cards stat bars plus an event timeline (goals with assists, cards, subs with minute). Upcoming matches show a form comparison for both teams plus recent meetings
+- **Next Match recent meetings** — the Next Match card now shows the last 5 meetings between the two sides directly underneath the countdown, with a W/D/L record summary
+- **Upcoming Fixtures section** — next 3 upcoming fixtures now displayed alongside Recent Results in a two-column grid, each clickable for a match preview
+
+### Fixed
+- **Squad Stats showing cup data instead of league stats** — the `/players` API call was missing the `league` parameter, so the API returned stats for all competitions (League Cup, EFL Trophy, League Two). The adapter then picked the first entry, which was often a cup — meaning every player showed ~1 appearance and 0 goals. Now correctly filters by league, with a defensive fallback in the adapter that matches on LEAGUE_ID
+- **Code defaults out of sync with env** — `LEAGUE_ID` defaulted to `41` (League One) and `SEASON` to `2024`, but the actual env is League Two (42) / 2025. Updated defaults so local development works correctly without `.env.local`
+- **Hardcoded league ID in adapter** — the player stats adapter had `LEAGUE_TWO_ID = 42` hardcoded. Now imports `LEAGUE_ID` from the API client so it adapts automatically if the club changes division
+- **Hardcoded historical season** — `?season=2024` was baked into the client code. Now dynamically derived as `CURRENT_SEASON - 1` from the `NEXT_PUBLIC_SEASON` env var
+
+### New documentation
+- **MAINTENANCE.md** — comprehensive maintenance guide covering architecture overview, routine maintenance, end-of-season checklist with verification commands, multi-team promotion/relegation handling at scale, and troubleshooting common issues
+
+### Under the hood
+- New `/api/h2h` route using API-Football's `/fixtures/headtohead` endpoint (cached 24 hours)
+- New `getHeadToHead()` function in api-football.ts
+- Core constants (`TEAM_ID`, `LEAGUE_ID`, `SEASON`) now exported from api-football.ts for use across modules
+- `NEXT_PUBLIC_SEASON` env var exposes season to client-side code
+- Season rollover is now a one-line env change — everything propagates automatically
+- TypeScript clean — zero type errors
+
+---
+
 ## v1.25 — 8 March 2026
 
 **UX & performance — lazy loading, live countdown, skeletons, and more**
