@@ -61,6 +61,10 @@ A dedicated session to audit and optimise our API usage and caching strategy. Ke
 
 ---
 
+> **Season rollover, promotion/relegation, troubleshooting, and multi-team scaling** are all documented in [`MAINTENANCE.md`](./MAINTENANCE.md).
+
+---
+
 ## Ideas Backlog
 
 - **Mobile league table improvements** — the Home/Away split view is cramped on mobile. Add horizontal scroll indicator, or simplify to essential columns only on small screens. Consider a swipeable card layout as an alternative

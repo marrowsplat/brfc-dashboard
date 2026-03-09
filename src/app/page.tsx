@@ -405,6 +405,353 @@ function TeamNameWithForm({
   );
 }
 
+// ─── Head-to-Head Comparison ──────────────────────────────
+
+function HeadToHead({ table }: { table: StandingEntry[] }) {
+  const [teamA, setTeamA] = useState<number | null>(null);
+  const [teamB, setTeamB] = useState<number | null>(null);
+  const [h2hFixtures, setH2hFixtures] = useState<Fixture[]>([]);
+  const [loadingH2h, setLoadingH2h] = useState(false);
+
+  const sortedTeams = [...table].sort((a, b) => a.team.name.localeCompare(b.team.name));
+
+  useEffect(() => {
+    if (!teamA || !teamB || teamA === teamB) {
+      setH2hFixtures([]);
+      return;
+    }
+    setLoadingH2h(true);
+    fetch(`/api/h2h?team1=${teamA}&team2=${teamB}&last=5`)
+      .then((r) => r.json())
+      .then((data: Fixture[]) => setH2hFixtures(Array.isArray(data) ? data : []))
+      .catch(() => setH2hFixtures([]))
+      .finally(() => setLoadingH2h(false));
+  }, [teamA, teamB]);
+
+  const entryA = table.find((e) => e.team.id === teamA);
+  const entryB = table.find((e) => e.team.id === teamB);
+
+  function CompareRow({ label, valA, valB, higherBetter = true }: { label: string; valA: number | string; valB: number | string; higherBetter?: boolean }) {
+    const numA = typeof valA === "number" ? valA : parseFloat(valA);
+    const numB = typeof valB === "number" ? valB : parseFloat(valB);
+    const aWins = higherBetter ? numA > numB : numA < numB;
+    const bWins = higherBetter ? numB > numA : numB < numA;
+    return (
+      <div className="flex items-center text-xs py-1.5 border-b border-slate-50 last:border-0">
+        <span className={`w-16 text-right font-bold tabular-nums ${aWins ? "text-win" : bWins ? "text-slate-400" : "text-slate-700"}`}>{valA}</span>
+        <span className="flex-1 text-center text-muted font-medium">{label}</span>
+        <span className={`w-16 text-left font-bold tabular-nums ${bWins ? "text-win" : aWins ? "text-slate-400" : "text-slate-700"}`}>{valB}</span>
+      </div>
+    );
+  }
+
+  // H2H record summary
+  const h2hRecord = h2hFixtures.reduce(
+    (acc, f) => {
+      if (f.homeGoals === null || f.awayGoals === null) return acc;
+      const aIsHome = f.homeTeam.id === teamA;
+      const aGoals = aIsHome ? f.homeGoals : f.awayGoals;
+      const bGoals = aIsHome ? f.awayGoals : f.homeGoals;
+      if (aGoals > bGoals) acc.aWins++;
+      else if (bGoals > aGoals) acc.bWins++;
+      else acc.draws++;
+      return acc;
+    },
+    { aWins: 0, draws: 0, bWins: 0 }
+  );
+
+  return (
+    <div>
+      {/* Team selectors */}
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <select
+          value={teamA ?? ""}
+          onChange={(e) => setTeamA(e.target.value ? parseInt(e.target.value, 10) : null)}
+          className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-brfc-blue/30"
+        >
+          <option value="">Select team...</option>
+          {sortedTeams.map((e) => (
+            <option key={e.team.id} value={e.team.id} disabled={e.team.id === teamB}>
+              {e.team.name}
+            </option>
+          ))}
+        </select>
+        <select
+          value={teamB ?? ""}
+          onChange={(e) => setTeamB(e.target.value ? parseInt(e.target.value, 10) : null)}
+          className="text-xs bg-slate-50 border border-slate-200 rounded-lg px-2 py-2 text-slate-700 focus:outline-none focus:ring-2 focus:ring-brfc-blue/30"
+        >
+          <option value="">Select team...</option>
+          {sortedTeams.map((e) => (
+            <option key={e.team.id} value={e.team.id} disabled={e.team.id === teamA}>
+              {e.team.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {entryA && entryB ? (
+        <div>
+          {/* Team logos + names header */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <img src={entryA.team.logo} alt={entryA.team.name} className="w-8 h-8 object-contain" />
+              <div>
+                <span className={`text-xs font-bold ${entryA.team.id === TEAM_ID ? "text-brfc-blue" : "text-slate-700"}`}>{entryA.team.name}</span>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className="text-[10px] font-bold text-muted bg-slate-100 rounded px-1 py-0.5">{ordinal(entryA.rank)}</span>
+                  <FormDots form={entryA.form} size="xs" />
+                </div>
+              </div>
+            </div>
+            <span className="text-xs text-muted font-semibold">vs</span>
+            <div className="flex items-center gap-2">
+              <div className="text-right">
+                <span className={`text-xs font-bold ${entryB.team.id === TEAM_ID ? "text-brfc-blue" : "text-slate-700"}`}>{entryB.team.name}</span>
+                <div className="flex items-center gap-1 mt-0.5 justify-end">
+                  <FormDots form={entryB.form} size="xs" />
+                  <span className="text-[10px] font-bold text-muted bg-slate-100 rounded px-1 py-0.5">{ordinal(entryB.rank)}</span>
+                </div>
+              </div>
+              <img src={entryB.team.logo} alt={entryB.team.name} className="w-8 h-8 object-contain" />
+            </div>
+          </div>
+
+          {/* Stat comparison */}
+          <div className="bg-slate-50/50 rounded-xl p-3 mb-3">
+            <CompareRow label="Points" valA={entryA.points} valB={entryB.points} />
+            <CompareRow label="Played" valA={entryA.played} valB={entryB.played} />
+            <CompareRow label="Wins" valA={entryA.wins} valB={entryB.wins} />
+            <CompareRow label="Draws" valA={entryA.draws} valB={entryB.draws} />
+            <CompareRow label="Losses" valA={entryA.losses} valB={entryB.losses} higherBetter={false} />
+            <CompareRow label="GF" valA={entryA.goalsFor} valB={entryB.goalsFor} />
+            <CompareRow label="GA" valA={entryA.goalsAgainst} valB={entryB.goalsAgainst} higherBetter={false} />
+            <CompareRow label="GD" valA={entryA.goalsDiff} valB={entryB.goalsDiff} />
+            <CompareRow label="PPG" valA={(entryA.points / entryA.played).toFixed(2)} valB={(entryB.points / entryB.played).toFixed(2)} />
+            <CompareRow label="Home W" valA={entryA.homeRecord.w} valB={entryB.homeRecord.w} />
+            <CompareRow label="Away W" valA={entryA.awayRecord.w} valB={entryB.awayRecord.w} />
+          </div>
+
+          {/* H2H recent meetings */}
+          {loadingH2h ? (
+            <p className="text-xs text-muted text-center py-2">Loading head-to-head...</p>
+          ) : h2hFixtures.length > 0 ? (
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[10px] font-semibold text-muted uppercase tracking-wider">Last {h2hFixtures.length} meetings</span>
+                <span className="text-[10px] font-bold text-slate-600">
+                  {h2hRecord.aWins}W {h2hRecord.draws}D {h2hRecord.bWins}L
+                </span>
+              </div>
+              <div className="space-y-1">
+                {h2hFixtures.map((f) => (
+                  <div key={f.id} className="flex items-center gap-2 text-xs py-1 border-b border-slate-50 last:border-0">
+                    <span className="text-[10px] text-muted w-16">{new Date(f.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" })}</span>
+                    <span className={`flex-1 text-right truncate ${f.homeTeam.id === teamA || f.homeTeam.id === teamB ? "font-medium" : ""}`}>
+                      {f.homeTeam.name}
+                    </span>
+                    <span className="font-bold tabular-nums text-slate-800 w-10 text-center">
+                      {f.homeGoals}–{f.awayGoals}
+                    </span>
+                    <span className={`flex-1 truncate ${f.awayTeam.id === teamA || f.awayTeam.id === teamB ? "font-medium" : ""}`}>
+                      {f.awayTeam.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : teamA && teamB ? (
+            <p className="text-xs text-muted text-center py-2">No previous meetings found</p>
+          ) : null}
+        </div>
+      ) : (
+        <p className="text-xs text-muted text-center py-4">Select two teams above to compare their season stats and recent head-to-head record.</p>
+      )}
+    </div>
+  );
+}
+
+// ─── Match Detail Expansion ──────────────────────────────
+
+function MatchDetail({ fixture, table }: { fixture: Fixture; table: StandingEntry[] }) {
+  const [stats, setStats] = useState<MatchStats | null>(null);
+  const [events, setEvents] = useState<FixtureEvent[]>([]);
+  const [h2hFixtures, setH2hFixtures] = useState<Fixture[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const isCompleted = fixture.status === "FT";
+
+  useEffect(() => {
+    const fetches: Promise<void>[] = [];
+
+    // For completed matches, fetch stats + events
+    if (isCompleted) {
+      fetches.push(
+        fetch(`/api/fixture-stats?id=${fixture.id}`)
+          .then((r) => r.json())
+          .then((data) => {
+            setStats(data.stats || null);
+            setEvents(data.events || []);
+          })
+          .catch(() => {})
+      );
+    }
+
+    // For all matches, fetch h2h
+    fetches.push(
+      fetch(`/api/h2h?team1=${fixture.homeTeam.id}&team2=${fixture.awayTeam.id}&last=3`)
+        .then((r) => r.json())
+        .then((data: Fixture[]) => setH2hFixtures(Array.isArray(data) ? data : []))
+        .catch(() => {})
+    );
+
+    Promise.all(fetches).finally(() => setLoading(false));
+  }, [fixture.id, fixture.homeTeam.id, fixture.awayTeam.id, isCompleted]);
+
+  if (loading) {
+    return (
+      <div className="py-3 text-center">
+        <span className="text-xs text-muted">Loading match details...</span>
+      </div>
+    );
+  }
+
+  const homeEntry = table.find((e) => e.team.id === fixture.homeTeam.id);
+  const awayEntry = table.find((e) => e.team.id === fixture.awayTeam.id);
+
+  return (
+    <div className="mt-3 pt-3 border-t border-slate-100 space-y-3">
+      {/* Match stats (completed matches only) */}
+      {isCompleted && stats && (
+        <div className="space-y-2">
+          <StatBar label="Possession" home={stats.possession.home} away={stats.possession.away} />
+          <StatBar label="Shots on Target" home={stats.shotsOnGoal.home} away={stats.shotsOnGoal.away} />
+          <StatBar label="Total Shots" home={stats.totalShots.home} away={stats.totalShots.away} />
+          <StatBar label="Corners" home={stats.cornerKicks.home} away={stats.cornerKicks.away} />
+          <StatBar label="Fouls" home={stats.fouls.home} away={stats.fouls.away} />
+          <StatBar label="Yellow Cards" home={stats.yellowCards.home} away={stats.yellowCards.away} />
+          <StatBar label="Red Cards" home={stats.redCards.home} away={stats.redCards.away} />
+        </div>
+      )}
+
+      {/* Event timeline (completed matches only) */}
+      {isCompleted && events.length > 0 && (
+        <div>
+          <span className="text-[10px] font-semibold text-muted uppercase tracking-wider">Match Events</span>
+          <div className="mt-1.5 space-y-0.5">
+            {events
+              .filter((e) => e.type === "Goal" || e.type === "Card" || e.type === "subst")
+              .map((e, i) => {
+                const isHome = e.teamId === fixture.homeTeam.id;
+                const icon = e.type === "Goal"
+                  ? e.detail === "Own Goal" ? "🔴" : "⚽"
+                  : e.type === "Card"
+                    ? e.detail === "Yellow Card" ? "🟨" : "🟥"
+                    : "🔄";
+                return (
+                  <div key={i} className={`flex items-center gap-1.5 text-[11px] py-0.5 ${isHome ? "" : "flex-row-reverse text-right"}`}>
+                    <span className="text-muted tabular-nums w-6 text-center flex-shrink-0">{e.minute}&apos;</span>
+                    <span className="flex-shrink-0">{icon}</span>
+                    <span className="text-slate-700 truncate">
+                      {e.playerName}
+                      {e.type === "Goal" && e.assistName && (
+                        <span className="text-muted"> ({e.assistName})</span>
+                      )}
+                      {e.type === "Goal" && e.detail === "Penalty" && (
+                        <span className="text-muted"> (pen)</span>
+                      )}
+                      {e.type === "Goal" && e.detail === "Own Goal" && (
+                        <span className="text-muted"> (og)</span>
+                      )}
+                    </span>
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
+      {/* Preview for upcoming matches: form comparison */}
+      {!isCompleted && homeEntry && awayEntry && (
+        <div className="grid grid-cols-2 gap-4 text-center">
+          <div>
+            <span className="text-[10px] font-semibold text-muted uppercase tracking-wider block mb-1">Home form</span>
+            <div className="flex justify-center"><FormDots form={homeEntry.form} /></div>
+            <span className="text-xs text-slate-600 mt-1 block">{ordinal(homeEntry.rank)} · {homeEntry.points}pts</span>
+          </div>
+          <div>
+            <span className="text-[10px] font-semibold text-muted uppercase tracking-wider block mb-1">Away form</span>
+            <div className="flex justify-center"><FormDots form={awayEntry.form} /></div>
+            <span className="text-xs text-slate-600 mt-1 block">{ordinal(awayEntry.rank)} · {awayEntry.points}pts</span>
+          </div>
+        </div>
+      )}
+
+      {/* H2H mini history */}
+      {h2hFixtures.length > 0 && (
+        <div>
+          <span className="text-[10px] font-semibold text-muted uppercase tracking-wider">Recent meetings</span>
+          <div className="mt-1 space-y-0.5">
+            {h2hFixtures.map((f) => (
+              <div key={f.id} className="flex items-center gap-1.5 text-[11px] py-0.5">
+                <span className="text-muted w-14 flex-shrink-0">{new Date(f.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" })}</span>
+                <span className="flex-1 text-right truncate text-slate-600">{f.homeTeam.name}</span>
+                <span className="font-bold tabular-nums w-8 text-center">{f.homeGoals}–{f.awayGoals}</span>
+                <span className="flex-1 truncate text-slate-600">{f.awayTeam.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Expandable Fixture Row ──────────────────────────────
+
+function FixtureRow({ fixture, table }: { fixture: Fixture; table: StandingEntry[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const res = resultFor(fixture, TEAM_ID);
+  const isHome = fixture.homeTeam.id === TEAM_ID;
+  const opponent = isHome ? fixture.awayTeam.name : fixture.homeTeam.name;
+  const resBg = res === "W" ? "bg-win" : res === "L" ? "bg-loss" : res === "D" ? "bg-draw" : "bg-slate-300";
+  const matchDate = new Date(fixture.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+
+  return (
+    <div>
+      <button
+        onClick={() => setExpanded(!expanded)}
+        className="flex items-center gap-2 py-1.5 border-b border-slate-50 last:border-0 w-full text-left hover:bg-slate-50/50 transition-colors rounded"
+      >
+        {fixture.status === "FT" ? (
+          <span className={`w-5 h-5 rounded-sm text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 ${resBg}`}>
+            {res}
+          </span>
+        ) : (
+          <span className="w-5 h-5 rounded-sm bg-brfc-blue/10 text-brfc-blue text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+            ◆
+          </span>
+        )}
+        <span className="text-xs text-slate-700 font-medium truncate flex-1">
+          {isHome ? "vs" : "@"} {opponent}
+        </span>
+        {fixture.status === "FT" ? (
+          <span className="text-xs font-bold text-slate-800 tabular-nums">
+            {fixture.homeGoals}–{fixture.awayGoals}
+          </span>
+        ) : (
+          <span className="text-[10px] text-brfc-blue font-medium">
+            {formatTime(fixture.date)}
+          </span>
+        )}
+        <span className="text-[10px] text-muted w-12 text-right">{matchDate}</span>
+        <span className={`text-[10px] text-muted transition-transform ${expanded ? "rotate-180" : ""}`}>▼</span>
+      </button>
+      {expanded && <MatchDetail fixture={fixture} table={table} />}
+    </div>
+  );
+}
+
 // ─── League Table ──────────────────────────────────────────
 
 function Th({
@@ -1413,33 +1760,30 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Row 3: Recent Results */}
-        {!loading && lastFixtures.length > 3 && (
-          <Card title="Recent Results" accent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5">
-              {lastFixtures.slice(-10).reverse().map((f) => {
-                const res = resultFor(f, TEAM_ID);
-                const isHome = f.homeTeam.id === TEAM_ID;
-                const opponent = isHome ? f.awayTeam.name : f.homeTeam.name;
-                const resBg = res === "W" ? "bg-win" : res === "L" ? "bg-loss" : res === "D" ? "bg-draw" : "bg-slate-300";
-                const matchDate = new Date(f.date).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-                return (
-                  <div key={f.id} className="flex items-center gap-2 py-1.5 border-b border-slate-50 last:border-0">
-                    <span className={`w-5 h-5 rounded-sm text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0 ${resBg}`}>
-                      {res}
-                    </span>
-                    <span className="text-xs text-slate-700 font-medium truncate flex-1">
-                      {isHome ? "vs" : "@"} {opponent}
-                    </span>
-                    <span className="text-xs font-bold text-slate-800 tabular-nums">
-                      {f.homeGoals}–{f.awayGoals}
-                    </span>
-                    <span className="text-[10px] text-muted w-12 text-right">{matchDate}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
+        {/* Row 3: Recent Results + Upcoming Fixtures */}
+        {!loading && (lastFixtures.length > 3 || nextFixtures.length > 0) && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {lastFixtures.length > 3 && (
+              <Card title="Recent Results" accent>
+                <p className="text-[10px] text-muted mb-2">Click a match for full details</p>
+                <div className="space-y-0">
+                  {lastFixtures.slice(-10).reverse().map((f) => (
+                    <FixtureRow key={f.id} fixture={f} table={correctedStandings?.table ?? []} />
+                  ))}
+                </div>
+              </Card>
+            )}
+            {nextFixtures.length > 0 && (
+              <Card title="Upcoming Fixtures" accent>
+                <p className="text-[10px] text-muted mb-2">Click a match for preview</p>
+                <div className="space-y-0">
+                  {nextFixtures.map((f) => (
+                    <FixtureRow key={f.id} fixture={f} table={correctedStandings?.table ?? []} />
+                  ))}
+                </div>
+              </Card>
+            )}
+          </div>
         )}
 
         {/* Row 4: Season Overview */}
@@ -1488,14 +1832,21 @@ export default function Dashboard() {
           </Card>
         )}
 
-        {/* Row 6: Player Stats */}
+        {/* Row 6: Head-to-Head Comparison */}
+        {!loading && correctedStandings && correctedStandings.table.length > 0 && (
+          <Card title="Head-to-Head Comparison" accent>
+            <HeadToHead table={correctedStandings.table} />
+          </Card>
+        )}
+
+        {/* Row 7: Player Stats */}
         {!loading && playerStats.length > 0 && (
           <Card title="Squad Stats" accent>
             <PlayerStatsTable players={playerStats} />
           </Card>
         )}
 
-        {/* Row 7: Season Charts */}
+        {/* Row 8: Season Charts */}
         {!loading && seasonFixtures.length > 0 && (
           <>
             <Card title="Points Accumulation" accent>
@@ -1528,7 +1879,7 @@ export default function Dashboard() {
       <footer className="max-w-5xl mx-auto px-4 sm:px-6 py-8 text-center">
         <p className="text-xs text-muted">
           <span className="font-semibold text-brfc-gold">DashboardFC</span>{" "}
-          <span className="text-subtle">v1.25</span>
+          <span className="text-subtle">v1.26</span>
           <span className="mx-2 text-subtle">&middot;</span>
           Data from{" "}
           <a

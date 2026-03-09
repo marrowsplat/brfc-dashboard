@@ -292,3 +292,17 @@ export async function getHistoricalSeasonFixtures(season: string): Promise<Fixtu
 
   return data.response || [];
 }
+
+/**
+ * Head-to-head fixtures between two teams — last N meetings.
+ * Cached 24 hours (historical results don't change often).
+ */
+export async function getHeadToHead(team1: string, team2: string, last = 5): Promise<FixtureResponse> {
+  const data = (await fetchWithCache(
+    "/fixtures/headtohead",
+    { h2h: `${team1}-${team2}`, last: String(last) },
+    HOURS(24)
+  )) as { response: FixtureResponse };
+
+  return data.response || [];
+}
