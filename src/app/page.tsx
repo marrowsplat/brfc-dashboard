@@ -11,6 +11,10 @@ import type {
   PlayerStats,
 } from "@/lib/domain-types";
 
+// Season config — derived from env so rolling to next season is a one-line change
+const CURRENT_SEASON = process.env.NEXT_PUBLIC_SEASON || "2025";
+const PREVIOUS_SEASON = String(parseInt(CURRENT_SEASON, 10) - 1);
+
 // Lazy-load chart components — they're below the fold and pull in Recharts (~80KB)
 const PointsChart = dynamic(() => import("./charts").then((m) => ({ default: m.PointsChart })), { ssr: false });
 const GoalsChart = dynamic(() => import("./charts").then((m) => ({ default: m.GoalsChart })), { ssr: false });
@@ -780,7 +784,7 @@ export default function Dashboard() {
           fetch("/api/fixtures?type=next&count=3"),
           fetch("/api/fixtures?type=season"),
           fetch("/api/players"),
-          fetch("/api/historical-fixtures?season=2024"),
+          fetch(`/api/historical-fixtures?season=${PREVIOUS_SEASON}`),
           fetch("/api/league-fixtures"),
         ]);
 

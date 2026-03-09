@@ -60,9 +60,17 @@ const HOURS = (n: number) => n * 60 * 60 * 1000;
 
 // --- Public API ---
 
-const TEAM_ID = process.env.TEAM_ID || "1334";
-const LEAGUE_ID = process.env.LEAGUE_ID || "41";
-const SEASON = process.env.SEASON || "2024";
+/**
+ * Core identifiers — set via env vars, with sensible defaults for 2025/26.
+ * When Rovers move league or the season rolls over, update .env.local (or
+ * Vercel env vars) and everything propagates automatically.
+ *
+ * Exported so the adapter layer can reference them (e.g. league ID for
+ * picking the correct statistics entry).
+ */
+export const TEAM_ID = process.env.TEAM_ID || "1334";
+export const LEAGUE_ID = process.env.LEAGUE_ID || "42";
+export const SEASON = process.env.SEASON || "2025";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type FixtureResponse = any[];
