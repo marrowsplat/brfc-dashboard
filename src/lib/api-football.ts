@@ -222,13 +222,18 @@ export async function getFixtureEvents(fixtureId: string) {
 
 /**
  * Player stats for the team this season — cached 6 hours.
- * Uses /players endpoint with team + season params, paginated.
+ * Uses /players endpoint with team + season + league params, paginated.
+ *
+ * IMPORTANT: The league param ensures we only get league stats (e.g. League Two),
+ * not cup competitions (League Cup, EFL Trophy). Without it, the API returns
+ * a statistics[] array per player with one entry per competition, and the
+ * first entry is often a cup — leading to wildly inaccurate squad figures.
  */
 export async function getPlayerStats() {
   // Fetch page 1 first to get paging info
   const page1 = (await fetchWithCache(
     "/players",
-    { team: TEAM_ID, season: SEASON, page: "1" },
+    { team: TEAM_ID, season: SEASON, league: LEAGUE_ID, page: "1" },
     HOURS(6)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   )) as { response: any[]; paging: { current: number; total: number } };
@@ -240,7 +245,7 @@ export async function getPlayerStats() {
   for (let p = 2; p <= totalPages; p++) {
     const page = (await fetchWithCache(
       "/players",
-      { team: TEAM_ID, season: SEASON, page: String(p) },
+      { team: TEAM_ID, season: SEASON, league: LEAGUE_ID, page: String(p) },
       HOURS(6)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     )) as { response: any[] };

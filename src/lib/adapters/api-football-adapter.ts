@@ -179,19 +179,40 @@ export function transformMatchStats(rawStats: any[]): MatchStats | null {
  * Transform raw API-Football player data into domain PlayerStats.
  *
  * Input shape (from API-Football /players):
- *   { player: { id, name, photo }, statistics: [ { games: { position, appearences, rating, minutes }, goals: { total, assists }, cards: { yellow, red } } ] }
+ *   { player: { id, name, photo }, statistics: [ { league: { id, name }, games: { ... }, goals: { ... }, cards: { ... } } ] }
  *
- * Each entry has a statistics array — we take the first (league) entry.
+ * The statistics array can contain one entry per competition. We pick the
+ * League Two entry (id 42) first, then fall back to the entry with the most
+ * appearances, then to index 0 as a last resort. The API call already filters
+ * by league, but this defensive approach handles edge cases.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function transformPlayerStats(rawPlayers: any[]): PlayerStats[] {
   if (!Array.isArray(rawPlayers)) return [];
 
+  const LEAGUE_TWO_ID = 42;
+
   return rawPlayers
     .map((entry) => {
       const player = entry.player;
-      const stats = entry.statistics?.[0];
-      if (!player || !stats) return null;
+      const allStats = entry.statistics;
+      if (!player || !Array.isArray(allStats) || allStats.length === 0)
+        return null;
+
+      // Prefer the league stats entry; fall back to most appearances; then [0]
+      const stats =
+        allStats.find(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (s: any) => s.league?.id === LEAGUE_TWO_ID
+        ) ??
+        allStats.reduce(
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (best: any, s: any) =>
+            (s.games?.appearences ?? 0) > (best.games?.appearences ?? 0)
+              ? s
+              : best,
+          allStats[0]
+        );
 
       return {
         id: player.id,
