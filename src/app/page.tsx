@@ -405,6 +405,58 @@ function TeamNameWithForm({
   );
 }
 
+// ─── Next Match H2H Mini ──────────────────────────────────
+
+function NextMatchH2H({ homeId, awayId }: { homeId: number; awayId: number }) {
+  const [fixtures, setFixtures] = useState<Fixture[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/h2h?team1=${homeId}&team2=${awayId}&last=5`)
+      .then((r) => r.json())
+      .then((data: Fixture[]) => setFixtures(Array.isArray(data) ? data : []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [homeId, awayId]);
+
+  if (loading) return <p className="text-[10px] text-muted mt-3 pt-3 border-t border-slate-100">Loading recent meetings...</p>;
+  if (fixtures.length === 0) return null;
+
+  // Record from home team perspective
+  const record = fixtures.reduce(
+    (acc, f) => {
+      if (f.homeGoals === null || f.awayGoals === null) return acc;
+      const hIsHome = f.homeTeam.id === homeId;
+      const hGoals = hIsHome ? f.homeGoals : f.awayGoals;
+      const aGoals = hIsHome ? f.awayGoals : f.homeGoals;
+      if (hGoals > aGoals) acc.hWins++;
+      else if (aGoals > hGoals) acc.aWins++;
+      else acc.draws++;
+      return acc;
+    },
+    { hWins: 0, draws: 0, aWins: 0 }
+  );
+
+  return (
+    <div className="mt-3 pt-3 border-t border-slate-100">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[10px] font-semibold text-muted uppercase tracking-wider">Last {fixtures.length} meetings</span>
+        <span className="text-[10px] font-bold text-slate-600 tabular-nums">{record.hWins}W {record.draws}D {record.aWins}L</span>
+      </div>
+      <div className="space-y-0.5">
+        {fixtures.map((f) => (
+          <div key={f.id} className="flex items-center gap-1.5 text-[11px] py-0.5">
+            <span className="text-muted w-14 flex-shrink-0">{new Date(f.date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" })}</span>
+            <span className="flex-1 text-right truncate text-slate-600">{f.homeTeam.name}</span>
+            <span className="font-bold tabular-nums w-8 text-center">{f.homeGoals}–{f.awayGoals}</span>
+            <span className="flex-1 truncate text-slate-600">{f.awayTeam.name}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Head-to-Head Comparison ──────────────────────────────
 
 function HeadToHead({ table }: { table: StandingEntry[] }) {
@@ -1752,6 +1804,7 @@ export default function Dashboard() {
                   {nextMatch.venueName}
                 </span>
               </div>
+              <NextMatchH2H homeId={nextMatch.homeTeam.id} awayId={nextMatch.awayTeam.id} />
             </Card>
           ) : (
             <Card title="Next Match">
